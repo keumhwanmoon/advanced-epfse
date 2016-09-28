@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="qnaAttchOra">
+    <resultMap type="com.ecosian.epfse.system.qna.dao.vo.QnaAttchVO" id="result">
+        <result property="attchId"      column="ATTCH_ID"       />
+        <result property="orgFileName"  column="ORG_FILE_NAME"  />
+        <result property="fileSizeAmt"  column="FILE_SIZE_AMT"  />
+        <result property="sizeUnitCode" column="SIZE_UNIT_CODE" />
+        <result property="attchHref"    column="ATTCH_HREF"     />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="qnaAttchOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaAttchVO">
+        SELECT  /* sqlMapId(qnaAttchOra.selectList) */
+                Z1.ATTCH_ID
+              , Z1.ORG_FILE_NAME
+              , Z1.FILE_SIZE_AMT
+              , Z1.SIZE_UNIT_CODE
+              , Z1.ATTCH_HREF
+        FROM    VW_ATTCH_HREF                Z1                              <!-- [첨부HREF] -->
+        INNER JOIN TB_QNA_ATTCH              A1                              <!-- [Q&A첨부] -->
+                ON  A1.ATTCH_SEQ             =  #{rowId}                     <!-- N(10,0) N 첨부일련번호 -->
+                AND A1.ATTCH_ID              =  Z1.ATTCH_ID                  <!-- V(20)   N 첨부ID       -->
+        ORDER BY
+                Z1.ATTCH_ID                  ASC
+    </select>
+
+    <!-- 목록 등록 -->
+    <!-- 설명 : 동향 클래스 저장시 사용한다. -->
+    <insert id="qnaAttchOra.insertList" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaAttchVO">
+        INSERT INTO TB_QNA_ATTCH                                             <!-- [Q&A첨부] -->
+        (       /* sqlMapId(qnaAttchOra.insertList) */
+                SEQ                                                          <!-- N(10,0) N 일련번호     -->
+              , ATTCH_SEQ                                                    <!-- N(10,0) N 첨부일련번호 -->
+              , ATTCH_ID                                                     <!-- V(20)   N 첨부ID       -->
+        )
+        SELECT  (
+                SELECT  COALESCE(MAX(AA.SEQ), 0) AS ATTCH_NO
+                FROM    TB_QNA_ATTCH         AA                              <!-- [Q&A첨부] -->
+                ) + ROWNUM                   AS SEQ                          <!-- N(10,0) N 일련번호     -->
+              , #{rowId}                     AS ATTCH_SEQ                    <!-- N(10,0) N 첨부일련번호 -->
+              , Z1.ATTCH_ID                                                  <!-- V(20)   N 첨부ID       -->
+        FROM    TB_ATTCH                     Z1                              <!-- [첨부] -->
+        WHERE   Z1.ATTCH_ID                  IN (${rowIdList})               <!-- V(20)   N 첨부ID       -->
+        AND     NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_QNA_ATTCH    AB                        <!-- [Q&A첨부] -->
+                           WHERE   AB.ATTCH_SEQ    =  #{rowId}               <!-- N(10,0) N 첨부일련번호 -->
+                           AND     AB.ATTCH_ID     =  Z1.ATTCH_ID            <!-- V(20)   N 첨부ID       -->
+                           )
+    </insert>
+
+    <!-- 목록 삭제 -->
+    <!-- 설명 : 동향 클래스 저장/삭제시 사용한다. -->
+    <delete id="qnaAttchOra.deleteList" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaAttchVO">
+        DELETE  /* sqlMapId(qnaAttchOra.deleteList) */
+        FROM    TB_QNA_ATTCH                                                 <!-- [Q&A첨부] -->
+        WHERE   ATTCH_SEQ                    =  #{rowId}                     <!-- N(10,0) N 일련번호   -->
+        <if test='null != rowIdList and "" != rowIdList'>
+        AND     ATTCH_ID                     NOT IN (${rowIdList})           <!-- V(20)   N 첨부ID       -->
+        </if>
+    </delete>
+</mapper>

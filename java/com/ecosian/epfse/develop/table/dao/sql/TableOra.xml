@@ -1,0 +1,969 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="tableOra">
+    <resultMap type="com.ecosian.epfse.system.common.dao.vo.ComboVO" id="resultOwner">
+        <result property="userdefCode" column="USERDEF_CODE" />
+        <result property="codeName"    column="CODE_NAME"    />
+        <result property="chcValue"    column="CHC_VALUE"    />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.develop.table.dao.vo.TableVO" id="result">
+        <result property="tableEngName" column="TABLE_ENG_NAME" />
+        <result property="tableKrnName" column="TABLE_KRN_NAME" />
+        <result property="ownerName"    column="OWNER_NAME"     />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.develop.table.dao.vo.TableVO" id="resultCol">
+        <result property="colSeq"       column="COL_SEQ"        />
+        <result property="colEngName"   column="COL_ENG_NAME"   />
+        <result property="colKrnName"   column="COL_KRN_NAME"   />
+        <result property="dataTypeId"   column="DATA_TYPE_ID"   />
+        <result property="dataLngthId"  column="DATA_LNGTH_ID"  />
+        <result property="nullYn"       column="NULL_YN"        />
+        <result property="pkYn"         column="PK_YN"          />
+        <result property="tableEngName" column="TABLE_ENG_NAME" />
+        <result property="tableKrnName" column="TABLE_KRN_NAME" />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.develop.table.dao.vo.TableVO" id="resultQuery">
+        <result property="rowId" column="ROW_ID" />
+        <result property="query" column="QUERY"  />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="tableOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.develop.table.dao.vo.TableVO">
+        SELECT  /* sqlMapId(tableOra.selectList) */
+                A1.TABLE_NAME                AS TABLE_ENG_NAME               <!-- 테이블영문명 --><!-- V(30)   Y 테이블명 -->
+              , B1.COMMENTS                  AS TABLE_KRN_NAME               <!-- 테이블한글명 --><!-- V(4000) Y 주석     -->
+              , #{ownerName}                 AS OWNER_NAME
+        FROM    SYS.ALL_ALL_TABLES           A1                              <!-- [모든 테이블내역]      -->
+        LEFT OUTER JOIN
+                SYS.ALL_TAB_COMMENTS  B1                                     <!-- [모든 테이블의 주석내역] -->
+                ON  B1.OWNER                 =  A1.OWNER                     <!-- V(30)   N 소유자       -->
+                AND B1.TABLE_NAME            =  A1.TABLE_NAME                <!-- V(30)   N 테이블명     -->
+        WHERE   A1.OWNER                     =  UPPER(#{ownerName})          <!-- V(30)   Y 소유자       -->
+        <if test='null != tableEngName and "" != tableEngName'>
+        AND     A1.TABLE_NAME                LIKE UPPER(#{tableEngName}) || '%'  <!-- V(30)   Y 테이블명     -->
+        </if>
+        <if test='null != tableKrnName and "" != tableKrnName'>
+        AND     B1.COMMENTS                  LIKE #{tableKrnName}        || '%'  <!-- V(4000) Y 주석         -->
+        </if>
+        <if test='null != colEngName and "" != colEngName or null != colKrnName and "" != colKrnName'>
+        AND     EXISTS (
+                       SELECT  1
+                       FROM    SYS.ALL_TAB_COLUMNS   B1                      <!-- [모든 테이블의 컬럼내역] -->
+                       LEFT OUTER JOIN
+                               SYS.ALL_COL_COMMENTS  C1                      <!-- [모든 컬럼의 주석내역] -->
+                               ON  C1.OWNER          =  B1.OWNER             <!-- V(30)   N 소유자       -->
+                               AND C1.TABLE_NAME     =  B1.TABLE_NAME        <!-- V(30)   N 테이블명     -->
+                               AND C1.COLUMN_NAME    =  B1.COLUMN_NAME       <!-- V(30)   N 컬럼명       -->
+                       WHERE   B1.OWNER              =  A1.OWNER             <!-- V(30)   N 소유자       -->
+                       AND     B1.TABLE_NAME         =  A1.TABLE_NAME        <!-- V(30)   N 테이블명     -->
+                       <if test='null != colEngName and "" != colEngName'>
+                       AND     B1.COLUMN_NAME        LIKE UPPER(#{colEngName}) || '%'  <!-- V(30)   N 컬럼명       -->
+                       </if>
+                       <if test='null != colKrnName and "" != colKrnName'>
+                       AND     C1.COMMENTS           LIKE #{colKrnName}  || '% <!-- V(4000) Y 주석         -->
+                       </if>
+                       )
+        </if>
+        ORDER BY
+                A1.TABLE_NAME                ASC
+    </select>
+
+    <!-- 소유자 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="tableOra.selectOwnerList" resultMap="resultOwner" parameterType="com.ecosian.epfse.develop.table.dao.vo.TableVO">
+        SELECT  /* sqlMapId(tableOra.selectOwnerList) */
+                A1.NAME                      AS USERDEF_CODE
+              , A1.NAME                      AS CODE_NAME
+              , SYS_CONTEXT('USERENV', 'CURRENT_USER')
+                                             AS CHC_VALUE
+        FROM    SYS.USER$                    A1                              <!-- [사용자$] -->
+        WHERE   A1.DATATS#                   <![CDATA[>=]]> 6                <!-- NUMBER  N 테이블스페이스번호 -->
+        ORDER BY
+                A1.NAME                      ASC
+    </select>
+
+    <!-- 컬럼 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="tableOra.selectColList" resultMap="resultCol" parameterType="com.ecosian.epfse.develop.table.dao.vo.TableVO">
+        SELECT  /* sqlMapId(tableOra.selectColList) */
+                A1.COLUMN_ID                 AS COL_SEQ                      <!-- NUMBER  N 컬럼ID       -->
+              , A1.COLUMN_NAME               AS COL_ENG_NAME                 <!-- V(30)   N 컬럼명       -->
+              , C1.COMMENTS                  AS COL_KRN_NAME                 <!-- V(4000) Y 주석         -->
+              , A1.DATA_TYPE                 AS DATA_TYPE_ID                 <!-- V(106)  Y 데이터타입   -->
+              , ( CASE WHEN 'NUMBER'   = UPPER(A1.DATA_TYPE)
+                            THEN ( CASE WHEN A1.DATA_PRECISION IS NOT NULL THEN A1.DATA_PRECISION || ',' || COALESCE(A1.DATA_SCALE, 0) ELSE NULL END )
+                       WHEN 'VARCHAR2' = UPPER(A1.DATA_TYPE) OR 'CHAR' = UPPER(A1.DATA_TYPE)
+                            THEN CAST(A1.DATA_LENGTH AS VARCHAR2(106))
+                       ELSE NULL END )       AS DATA_LNGTH_ID                <!--           데이터길이ID -->
+              , A1.NULLABLE                  AS NULL_YN                      <!-- V(1)    Y NULL허용여부 -->
+              , ( CASE WHEN EXISTS  (
+                                    SELECT  1
+                                    FROM    SYS.ALL_CONS_COLUMNS    AA                     <!-- [모든 컬럼의 제약조건내역] -->
+                                    INNER JOIN
+                                            SYS.ALL_CONSTRAINTS     BB                     <!-- [모든 제약조건내역]    -->
+                                            ON  BB.OWNER            =  AA.OWNER            <!-- V(30)   Y 소유자       -->
+                                            AND BB.CONSTRAINT_NAME  =  AA.CONSTRAINT_NAME  <!-- V(30)   N 제약조건명   -->
+                                            AND BB.CONSTRAINT_TYPE  =  'P'                 <!-- V(1)    Y 제약조건타입 --><!-- P. PK -->
+                                    WHERE   AA.OWNER                =  A1.OWNER            <!-- V(30)   N 소유자       -->
+                                    AND     AA.TABLE_NAME           =  A1.TABLE_NAME       <!-- V(30)   N 테이블명     -->
+                                    AND     AA.COLUMN_NAME          =  A1.COLUMN_NAME      <!-- V(30)   N 컬럼명       -->
+                                    AND     AA.POSITION             IS NOT NULL            <!-- NUMBER  Y 위치         -->
+                                    ) THEN 'Y' ELSE 'N' END )
+                                             AS PK_YN                        <!--           PK여부       --><!-- Y. 여, N. 부 -->
+              , A1.TABLE_NAME                AS TABLE_ENG_NAME               <!-- V(30)   N 테이블명     -->
+              , B1.COMMENTS                  AS TABLE_KRN_NAME               <!-- V(4000) Y 주석         -->
+        FROM    SYS.ALL_TAB_COLUMNS          A1                              <!-- [모든 테이블의 컬럼내역] -->
+        LEFT OUTER JOIN
+                SYS.ALL_TAB_COMMENTS         B1                              <!-- [모든 테이블의 주석내역] -->
+                ON  B1.OWNER                 =  A1.OWNER                     <!-- V(30)   N 소유자       -->
+                AND B1.TABLE_NAME            =  A1.TABLE_NAME                <!-- V(30)   N 테이블명     -->
+        LEFT OUTER JOIN
+                SYS.ALL_COL_COMMENTS         C1                              <!-- [모든 컬럼의 주석내역] -->
+                ON  C1.OWNER                 =  A1.OWNER                     <!-- V(30)   N 소유자       -->
+                AND C1.TABLE_NAME            =  A1.TABLE_NAME                <!-- V(30)   N 테이블명     -->
+                AND C1.COLUMN_NAME           =  A1.COLUMN_NAME               <!-- V(30)   N 컬럼명       -->
+        WHERE   A1.OWNER                     =  UPPER(#{ownerName})          <!-- V(30)   N 소유자       -->
+        <if test='null != tableEngName and "" != tableEngName'>
+        AND     A1.TABLE_NAME                LIKE UPPER(#{tableEngName}) || '%'  <!-- V(30)   Y 테이블명     -->
+        </if>
+        <if test='null != colEngName   and "" != colEngName'  >
+        AND     A1.COLUMN_NAME               LIKE UPPER(#{colEngName}  ) || '%'  <!-- V(30)   N 컬럼명       -->
+        </if>
+        <if test='null != tableKrnName and "" != tableKrnName'>
+        AND     B1.COMMENTS                  LIKE #{tableKrnName}        || '%'  <!-- V(4000) Y 주석         -->
+        </if>
+        <if test='null != colKrnName   and "" != colKrnName'  >
+        AND     C1.COMMENTS                  LIKE #{colKrnName}          || '%'  <!-- V(4000) Y 주석         -->
+        </if>
+        ORDER BY
+                A1.TABLE_NAME                ASC
+              , A1.COLUMN_ID                 ASC
+    </select>
+
+    <!-- 쿼리 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="tableOra.selectQueryList" resultMap="resultQuery" parameterType="com.ecosian.epfse.develop.table.dao.vo.TableVO">
+        WITH    /* sqlMapId(tableOra.selectQueryList) */
+                CB_INPUT_VALUE                                               <!-- [입력값] -->
+                AS
+                (
+                SELECT
+                        UPPER(#{ownerName}   )      AS OWNER                 <!-- 소유자     -->
+                      , UPPER(#{tableEngName})      AS TABLE_NAME            <!-- 테이블명   -->
+                      ,       'A1'                  AS TABLE_ALIAS           <!-- 테이블별칭 -->
+                FROM    DUAL
+                )
+              , CB_DFLT_VALUE                                                <!-- [기본값] -->
+                AS
+                (
+                SELECT  <!-- 입력값을 조회한다. -->
+                        A1.OWNER                                             <!-- 소유자     -->
+                      , A1.TABLE_NAME                                        <!-- 테이블명   -->
+                      , A1.TABLE_ALIAS                                       <!-- 테이블별칭 -->
+                      , ( CASE WHEN A1.TABLE_ALIAS IS NOT NULL THEN A1.TABLE_ALIAS || '.' ELSE NULL END )
+                                                    AS TABLE_ALIAS_DOT       <!-- 테이블별칭(.포함) -->
+                      , <![CDATA['    <!' || '--']]> AS COMMENT_OPEN         <!-- 주석열기          -->
+                      , <![CDATA['--' || '>' ]]>    AS COMMENT_CLOSE         <!-- 주석닫기          -->
+                      , 28                          AS OBJECT_NAME_MAX_LENGTH  <!-- 객체명최대길이    -->
+                      , '#' || '{'                  AS VARIABLE_OPEN         <!-- 변수열기          -->
+                      , '}'                         AS VARIABLE_CLOSE        <!-- 변수닫기          -->
+                FROM    CB_INPUT_VALUE              A1                       <!-- [입력값] -->
+                )
+              , CB_TABLE_COLUMN                                              <!-- [테이블컬럼] -->
+                AS
+                (
+                SELECT  <!-- 컬럼내역을 조회한다. -->
+                        UPPER(A1.COLUMN_NAME)       AS COLUMN_NAME           <!-- V(30)   N 컬럼명         -->
+                      , UPPER(A1.COLUMN_NAME)       AS COLUMN_ALIAS          <!--           컬럼별칭       -->
+                      , LOWER(SUBSTR(A1.COLUMN_NAME, 1, 1)) || REPLACE(SUBSTR(INITCAP(A1.COLUMN_NAME), 2), '_', '')
+                                                    AS COLUMN_VARIABLE       <!--           컬럼변수       -->
+                      , UPPER(SUBSTR(A1.COLUMN_NAME, 1, 1)) || REPLACE(SUBSTR(INITCAP(A1.COLUMN_NAME), 2), '_', '')
+                                                    AS COLUMN_VARIABLE2      <!--           컬럼변수2      -->
+                      , UPPER(A1.DATA_TYPE)         AS DATATYPE              <!-- V(106)  Y 데이터타입     -->
+                      , A1.DATA_LENGTH                                       <!--           데이터길이     -->
+                      , A1.DATA_PRECISION                                    <!--           데이터정수길이 -->
+                      , A1.DATA_SCALE                                        <!--           데이터소수길이 -->
+                      , A1.NULLABLE                                          <!-- V(1)    Y NULL허용여부   -->
+                      , A1.COLUMN_ID                                         <!-- NUMBER  N 컬럼ID         -->
+                      , C1.COMMENTS                 AS COLUMN_COMMENT        <!-- V(4000) N 컬럼주석       -->
+                      , ( CASE WHEN EXISTS  (
+                                            SELECT  1
+                                            FROM    SYS.ALL_CONS_COLUMNS    AA                      <!-- [모든 컬럼의 제약조건내역] -->
+                                            INNER JOIN
+                                                    SYS.ALL_CONSTRAINTS     BB                      <!-- [모든 제약조건내역]    -->
+                                                    ON  BB.OWNER            =  AA.OWNER             <!-- V(30)   Y 소유자       -->
+                                                    AND BB.CONSTRAINT_NAME  =  AA.CONSTRAINT_NAME   <!-- V(30)   N 제약조건명   -->
+                                                    AND BB.CONSTRAINT_TYPE  =  'P'                  <!-- V(1)    Y 제약조건타입 --><!-- P. PK -->
+                                            WHERE   AA.OWNER                =  A1.OWNER             <!-- V(30)   N 소유자       -->
+                                            AND     AA.TABLE_NAME           =  A1.TABLE_NAME        <!-- V(30)   N 테이블명     -->
+                                            AND     AA.COLUMN_NAME          =  A1.COLUMN_NAME       <!-- V(30)   N 컬럼명       -->
+                                            AND     AA.POSITION             IS NOT NULL             <!-- NUMBER  Y 위치         -->
+                                           ) THEN 'Y' ELSE 'N' END )
+                                                    AS PK_YN                 <!--           PK여부         --><!-- Y. 여, N. 부 -->
+                FROM    SYS.ALL_TAB_COLUMNS         A1                       <!-- [모든 테이블의 컬럼내역] -->
+                INNER JOIN
+                        CB_DFLT_VALUE               B1                       <!-- [기본값] -->
+                        ON  B1.OWNER                =  A1.OWNER              <!-- V(30)   N 소유자             -->
+                        AND B1.TABLE_NAME           =  A1.TABLE_NAME         <!-- V(30)   N 테이블명           -->
+                LEFT OUTER JOIN
+                        SYS.ALL_COL_COMMENTS        C1                       <!-- [모든 컬럼의 주석내역] -->
+                        ON  C1.OWNER                =  A1.OWNER              <!-- V(30)   N 소유자       -->
+                        AND C1.TABLE_NAME           =  A1.TABLE_NAME         <!-- V(30)   N 테이블명     -->
+                        AND C1.COLUMN_NAME          =  A1.COLUMN_NAME        <!-- V(30)   N 컬럼명       -->
+                )
+              , CB_COLUMN_DTL                                                <!-- [컬럼내역] -->
+                AS
+                (
+                SELECT  <!-- 컬럼내역을 조회한다. -->
+                        A1.COLUMN_NAME                                       <!-- V(30)   N 컬럼명         -->
+                      , A1.COLUMN_ALIAS                                      <!--           컬럼별칭       -->
+                      , A1.COLUMN_VARIABLE                                   <!--           컬럼변수       -->
+                      , A1.COLUMN_VARIABLE2                                  <!--           컬럼변수2      -->
+                      , A1.DATATYPE                                          <!-- V(106)  Y 데이터타입     -->
+                      , A1.DATA_LENGTH                                       <!--           데이터길이     -->
+                      , A1.DATA_PRECISION                                    <!--           데이터정수길이 -->
+                      , A1.DATA_SCALE                                        <!--           데이터소수길이 -->
+                      , A1.NULLABLE                                          <!-- V(1)    Y NULL허용여부   -->
+                      , A1.COLUMN_ID                                         <!-- NUMBER  N 컬럼ID         -->
+                      , A1.COLUMN_COMMENT                                    <!-- V(4000) N 컬럼주석       -->
+                      , A1.PK_YN                                             <!--           PK여부         --><!-- Y. 여, N. 부 -->
+                      , ( CASE WHEN 'VARCHAR2'  =  A1.DATATYPE
+                                    THEN 'V'
+                               WHEN 'CHAR'      =  A1.DATATYPE
+                                    THEN 'C'
+                               WHEN 'NUMBER'    =  A1.DATATYPE AND A1.DATA_PRECISION IS NOT NULL
+                                    THEN 'N'
+                               ELSE A1.DATATYPE END )
+                                                AS DATA_TYPE                 <!-- 데이터타입 -->
+                      , ( CASE WHEN 'VARCHAR2'  =  A1.DATATYPE
+                                    THEN '(' || A1.DATA_LENGTH                                         || ')'
+                               WHEN 'CHAR'      =  A1.DATATYPE
+                                    THEN '(' || A1.DATA_LENGTH                                         || ')'
+                               WHEN 'NUMBER'    = A1.DATATYPE AND A1.DATA_PRECISION IS NOT NULL
+                                    THEN '(' || A1.DATA_PRECISION || ',' || COALESCE(A1.DATA_SCALE, 0) || ')'
+                               ELSE      NULL END )
+                                                AS DATA_TYPE_LENGTH          <!--           데이터타입길이 -->
+                      , LENGTH(A1.COLUMN_COMMENT) * 2
+                                                AS COLUMN_COMMENT_LENGTH     <!--           컬럼주석길이   -->
+                      , LENGTH(A1.COLUMN_VARIABLE)
+                                                AS COLUMN_VARIABLE_LENGTH    <!--           컬럼변수길이   -->
+                      , LENGTH(A1.COLUMN_NAME)  AS COLUMN_NAME_LENGTH        <!--           컬럼명길이     -->
+                FROM    CB_TABLE_COLUMN         A1                           <!-- [테이블컬럼] -->
+                )
+              , CB_COLUMN_MAX_LENGTH                                         <!-- [컬럼최대길이] -->
+                AS
+                (
+                SELECT  <!-- 컬럼주석 최대길이를 조회한다. -->
+                        A2.COLUMN_COMMENT_MAXLENGTH                          <!--           컬럼주석최대길이 -->
+                      , A2.COLUMN_VARIABLE_MAX_LENGTH                        <!--           컬럼변수최대길이 -->
+                      , A2.COLUMN_NAME_MAX_LENGTH                            <!--           컬럼명최대길이   -->
+                      , A2.COLUMN_COMMENT_MAXLENGTH
+                                                AS COLUMN_COMMENT_MAX_LENGTH   <!--           컬럼주석최대길이 -->
+                      , ( CASE WHEN 12 <![CDATA[>=]]> A2.COLUMN_COMMENT_MAXLENGTH THEN 12 ELSE A2.COLUMN_COMMENT_MAXLENGTH END )
+                                                AS COLUMN_COMMENT_MAX_LENGTH2  <!--           컬럼주석최대길이 -->
+                FROM    (
+                        SELECT  COALESCE(MAX(A1.COLUMN_COMMENT_LENGTH ), 0) AS COLUMN_COMMENT_MAXLENGTH   <!--           컬럼주석최대길이 -->
+                              , COALESCE(MAX(A1.COLUMN_VARIABLE_LENGTH), 0) AS COLUMN_VARIABLE_MAX_LENGTH <!--           컬럼변수최대길이 -->
+                              , COALESCE(MAX(A1.COLUMN_NAME_LENGTH    ), 0) AS COLUMN_NAME_MAX_LENGTH     <!--           컬럼명최대길이   -->
+                        FROM    CB_COLUMN_DTL   A1                           <!-- [컬럼내역] -->
+                        )                       A2
+                )
+              , CB_NEW_COLUMN_DTL                                            <!-- [신규컬럼내역] -->
+                AS
+                (
+                SELECT
+                        A1.COLUMN_NAME                                       <!-- V(30)   N 컬럼명         -->
+                      , A1.COLUMN_ALIAS                                      <!--           컬럼별칭       -->
+                      , A1.COLUMN_VARIABLE                                   <!--           컬럼변수       -->
+                      , A1.COLUMN_VARIABLE2                                  <!--           컬럼변수2      -->
+                      , A1.DATATYPE                                          <!-- V(106)  Y 데이터타입     -->
+                      , A1.DATA_LENGTH                                       <!--           데이터길이     -->
+                      , A1.DATA_PRECISION                                    <!--           데이터정수길이 -->
+                      , A1.DATA_SCALE                                        <!--           데이터소수길이 -->
+                      , A1.NULLABLE                                          <!-- V(1)    Y NULL허용여부   -->
+                      , A1.COLUMN_ID                                         <!-- NUMBER  N 컬럼ID         -->
+                      , A1.COLUMN_COMMENT                                    <!-- V(4000) N 컬럼주석       -->
+                      , A1.PK_YN                                             <!--           PK여부         --><!-- Y. 여, N. 부 -->
+                      , A1.DATA_TYPE                                         <!-- 데이터타입 -->
+                      , A1.DATA_TYPE_LENGTH                                  <!--           데이터타입길이 -->
+                      , A1.COLUMN_COMMENT_LENGTH                             <!--           컬럼주석길이   -->
+                      , A1.COLUMN_VARIABLE_LENGTH                            <!--           컬럼변수길이   -->
+                      , A1.COLUMN_NAME_LENGTH                                <!--           컬럼명길이     -->
+                      , ( CASE WHEN A1.COLUMN_COMMENT IS NOT NULL
+                               THEN B1.COMMENT_OPEN
+                                    || ' ' || RPAD(A1.DATA_TYPE || A1.DATA_TYPE_LENGTH, 7, ' ')
+                                    || ' ' || A1.NULLABLE
+                                    || ' ' || RPAD(A1.COLUMN_COMMENT, C1.COLUMN_COMMENT_MAX_LENGTH, ' ')
+                                    || ' ' || B1.COMMENT_CLOSE                                           ELSE NULL END )
+                                                AS NEW_COLUMN_COMMENT        <!-- 신규컬럼주석 -->
+                FROM    CB_COLUMN_DTL           A1
+                CROSS JOIN
+                        CB_DFLT_VALUE           B1                           <!-- [기본값] -->
+                CROSS JOIN
+                        CB_COLUMN_MAX_LENGTH    C1                           <!-- [컬럼최대길이] -->
+                )
+              , CB_TAB_COMMENT                                               <!-- [테이블주석] -->
+                AS
+                (
+                SELECT  <!-- 테이블주석을 조회한다. -->
+                        ( CASE WHEN A1.COMMENTS IS NOT NULL
+                                    THEN B1.COMMENT_OPEN || ' [' || A1.COMMENTS || '] ' || B1.COMMENT_CLOSE ELSE NULL END )
+                                                AS TABLE_COMMENT             <!--           테이블주석 -->
+                FROM    SYS.ALL_TAB_COMMENTS    A1                           <!-- [모든 테이블의 주석내역] -->
+                INNER JOIN
+                        CB_DFLT_VALUE           B1                           <!-- [기본값] -->
+                        ON  B1.OWNER            =  A1.OWNER                  <!-- V(30)   N 소유자       -->
+                        AND B1.TABLE_NAME       =  A1.TABLE_NAME             <!-- V(30)   N 테이블명     -->
+                )
+              , CB_INQR_DTL                                                  <!-- [조회내역] -->
+                AS
+                (
+                SELECT  <!-- SELECT 컬럼내역을 조회한다. -->
+                        A2.SELECT_COLUMN        AS QUERY                     <!-- 쿼리 -->
+                FROM    (
+                        SELECT  ( CASE WHEN 1 = A1.COLUMN_ID THEN 'SELECT  ' ELSE '      , ' END )
+                                ||
+                                RPAD(B1.TABLE_ALIAS_DOT || A1.COLUMN_NAME, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                ||
+                                ( CASE WHEN A1.NEW_COLUMN_COMMENT IS NOT NULL
+                                       THEN RPAD('AS ' || A1.COLUMN_ALIAS, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                       ELSE      'AS ' || A1.COLUMN_ALIAS                            END )
+                                || A1.NEW_COLUMN_COMMENT
+                                                AS SELECT_COLUMN             <!-- SELECT컬럼   -->
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_DFLT_VALUE               B1               <!-- [기본값] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- FROM 구문을 조회한다. -->
+                        'FROM    '
+                        ||
+                        ( CASE WHEN A1.TABLE_ALIAS IS NOT NULL OR B1.TABLE_COMMENT IS NOT NULL
+                                    THEN RPAD(A1.TABLE_NAME, A1.OBJECT_NAME_MAX_LENGTH, ' '  )
+                               ELSE           A1.TABLE_NAME                              END )
+                        ||
+                        ( CASE WHEN B1.TABLE_COMMENT IS NOT NULL
+                                    THEN RPAD(A1.TABLE_ALIAS, A1.OBJECT_NAME_MAX_LENGTH, ' ') || B1.TABLE_COMMENT
+                               ELSE           A1.TABLE_ALIAS                                                END )
+                FROM    CB_DFLT_VALUE           A1                           <!-- [기본값] -->
+                LEFT OUTER JOIN
+                        CB_TAB_COMMENT          B1                           <!-- [테이블주석] -->
+                        ON  1                   =  1
+                UNION ALL
+                SELECT  <!-- WHERE 구문을 조회한다. -->
+                        A2.WHERE_COLUMN
+                FROM    (
+                        SELECT  <![CDATA['<']]> || 'if test=''null != ' || A1.COLUMN_VARIABLE || ' and "" != ' || A1.COLUMN_VARIABLE || '''' || <![CDATA['>']]> || CHR(13)
+                                ||
+                                ( CASE WHEN 1 = A1.COLUMN_ID THEN 'WHERE   ' ELSE 'AND     ' END )
+                                ||
+                                RPAD(B1.TABLE_ALIAS_DOT || A1.COLUMN_NAME, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                ||
+                                ( CASE WHEN A1.COLUMN_COMMENT IS NOT NULL
+                                       THEN RPAD('=' || '  ' || B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                       ELSE      '=' || '  ' || B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE                                  END )
+                                ||
+                                A1.NEW_COLUMN_COMMENT
+                                || CHR(13) || <![CDATA['<']]> || '/if' || <![CDATA['>']]>
+                                                            AS WHERE_COLUMN  <!-- WHERE컬럼 -->
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_DFLT_VALUE               B1               <!-- [기본값] -->
+                        WHERE   A1.PK_YN                    =  'Y'           <!--           PK여부         --><!-- Y. 여, N. 부 -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- INSERT 구문을 조회한다. -->
+                        'INSERT INTO '
+                        ||
+                        ( CASE WHEN B1.TABLE_COMMENT IS NOT NULL
+                               THEN RPAD(A1.TABLE_NAME, A1.OBJECT_NAME_MAX_LENGTH * 2 - 4, ' ') || B1.TABLE_COMMENT
+                               ELSE      A1.TABLE_NAME                                                          END )
+                FROM    CB_DFLT_VALUE           A1                           <!-- [기본값] -->
+                LEFT OUTER JOIN
+                        CB_TAB_COMMENT          B1                           <!-- [테이블주석] -->
+                        ON  1                   =  1
+                UNION ALL
+                SELECT  <!-- 괄호를 추가한다. -->
+                        '('
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- INSERT 컬럼내역을 조회한다. -->
+                        A2.INSERT_COLUMN
+                FROM    (
+                        SELECT  ( CASE WHEN 1 = A1.COLUMN_ID THEN RPAD(' ', 8, ' ') ELSE '      , ' END )
+                                ||
+                                ( CASE WHEN A1.NEW_COLUMN_COMMENT IS NOT NULL THEN RPAD(A1.COLUMN_NAME, B1.OBJECT_NAME_MAX_LENGTH * 2, ' ') ELSE A1.COLUMN_NAME END )
+                                ||
+                                A1.NEW_COLUMN_COMMENT       AS INSERT_COLUMN <!-- INSERT컬럼 -->
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_DFLT_VALUE               B1               <!-- [기본값] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 괄호를 추가한다. -->
+                        ')'
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- VALUES 구문을 조회한다. -->
+                        'VALUES'
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- 괄호를 추가한다. -->
+                        '('
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- INSERT 변수내역을 조회한다. -->
+                        A2.INSERT_VARIABLE
+                FROM    (
+                        SELECT  ( CASE WHEN 1 = A1.COLUMN_ID THEN RPAD(' ', 8, ' ') ELSE '      , ' END )
+                                ||
+                                ( CASE WHEN A1.COLUMN_COMMENT IS NOT NULL
+                                       THEN RPAD(B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE, B1.OBJECT_NAME_MAX_LENGTH * 2, ' ')
+                                       ELSE      B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE                                      END )
+                                ||
+                                A1.NEW_COLUMN_COMMENT       AS INSERT_VARIABLE
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_DFLT_VALUE               B1               <!-- [기본값] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 괄호를 추가한다. -->
+                        ')'
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- UPDATE 구문을 조회한다. -->
+                        'UPDATE  '
+                        ||
+                        ( CASE WHEN B1.TABLE_COMMENT IS NOT NULL
+                               THEN RPAD(A1.TABLE_NAME, A1.OBJECT_NAME_MAX_LENGTH * 2, ' ') || B1.TABLE_COMMENT
+                               ELSE      A1.TABLE_NAME                               END )
+                FROM    CB_DFLT_VALUE           A1                           <!-- [기본값] -->
+
+                LEFT OUTER JOIN
+                        CB_TAB_COMMENT          B1
+                        ON  1                   =  1                         <!-- [테이블주석] -->
+                UNION ALL
+                SELECT  <!-- UPDATE 컬럼내역을 조회한다. -->
+                        A2.UPDATE_COLUMN
+                FROM    (
+                        SELECT  ( CASE WHEN 1 = A1.COLUMN_ID THEN 'SET     ' ELSE '      , ' END )
+                                ||
+                                RPAD(A1.COLUMN_NAME, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                ||
+                                ( CASE WHEN A1.COLUMN_COMMENT IS NOT NULL
+                                       THEN RPAD('=' || '  ' || B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                       ELSE      '=' || '  ' || B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE                                  END )
+                                ||
+                                A1.NEW_COLUMN_COMMENT
+                                                            AS UPDATE_COLUMN
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_DFLT_VALUE               B1               <!-- [기본값] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- WHERE 구문을 조회한다. -->
+                        A2.WHERE_COLUMN
+                FROM    (
+                        SELECT  ( CASE WHEN 1 = A1.COLUMN_ID THEN 'WHERE   ' ELSE 'AND     ' END )
+                                ||
+                                RPAD(A1.COLUMN_NAME, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                ||
+                                ( CASE WHEN A1.COLUMN_COMMENT IS NOT NULL
+                                       THEN RPAD('=' || '  ' || B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                       ELSE      '=' || '  ' || B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE                                  END )
+                                ||
+                                A1.NEW_COLUMN_COMMENT
+                                                            AS WHERE_COLUMN
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_DFLT_VALUE               B1               <!-- [기본값] -->
+                        WHERE   A1.PK_YN                    =  'Y'           <!--           PK여부         --><!-- Y. 여, N. 부 -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- DELETE 구문을 조회한다. -->
+                        'DELETE'
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- FROM 구문을 조회한다. -->
+                        'FROM    '
+                        ||
+                        ( CASE WHEN B1.TABLE_COMMENT IS NOT NULL
+                               THEN RPAD(A1.TABLE_NAME, A1.OBJECT_NAME_MAX_LENGTH * 2, ' ') || B1.TABLE_COMMENT
+                               ELSE      A1.TABLE_NAME                                                      END )
+                FROM    CB_DFLT_VALUE           A1                           <!-- [기본값] -->
+                LEFT OUTER JOIN
+                        CB_TAB_COMMENT          B1                           <!-- [테이블주석] -->
+                        ON  1                   =  1
+                UNION ALL
+                SELECT  <!-- WHERE 구문을 조회한다. -->
+                        A2.WHERE_COLUMN
+                FROM    (
+                        SELECT  ( CASE WHEN 1 = A1.COLUMN_ID THEN 'WHERE   ' ELSE 'AND     ' END )
+                                ||
+                                RPAD(A1.COLUMN_NAME, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                ||
+                                ( CASE WHEN A1.COLUMN_COMMENT IS NOT NULL
+                                       THEN RPAD('=' || '  ' || B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE, B1.OBJECT_NAME_MAX_LENGTH, ' ')
+                                       ELSE      '=' || '  ' || B1.VARIABLE_OPEN || A1.COLUMN_VARIABLE || B1.VARIABLE_CLOSE                                  END )
+                                ||
+                                A1.NEW_COLUMN_COMMENT
+                                                            AS WHERE_COLUMN
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_DFLT_VALUE               B1               <!-- [기본값] -->
+                        WHERE   A1.PK_YN                    = 'Y'            <!--           PK여부         --><!-- Y. 여, N. 부 -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- RESULT 태그를 조회한다. -->
+                        A2.RESULT_TAG
+                FROM    (
+                        SELECT  <![CDATA['<']]>
+                                || 'result'
+                                || ' property="' || RPAD(A1.COLUMN_VARIABLE || '"', B1.COLUMN_VARIABLE_MAX_LENGTH + 1, ' ')
+                                || ' column="'   || RPAD(A1.COLUMN_NAME     || '"', B1.COLUMN_NAME_MAX_LENGTH     + 1, ' ')
+                                || <![CDATA[' />']]>        AS RESULT_TAG
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_COLUMN_MAX_LENGTH        B1               <!-- [컬럼최대길이] -->
+                        WHERE   A1.COLUMN_NAME              NOT IN ('RGST_DTM', 'RGST_USER_ID', 'UPDT_DTM', 'UPDT_USER_ID')
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                           A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- DECLARE 구문을 조회한다. -->
+                        A2.DECLARE_VARIABLE
+                FROM    (
+                        SELECT  'private String'
+                                || ' '    || RPAD(A1.COLUMN_VARIABLE, B1.COLUMN_VARIABLE_MAX_LENGTH, ' ') || ';'
+                                || ( CASE WHEN A1.COLUMN_COMMENT IS NOT NULL THEN ' // ' || A1.COLUMN_COMMENT ELSE NULL END )
+                                                            AS DECLARE_VARIABLE
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_COLUMN_MAX_LENGTH        B1               <!-- [컬럼최대길이] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- GETTER 함수를 조회한다. -->
+                        A2.GETTER_FUNC
+                FROM    (
+                        SELECT  'public String'
+                                || ' get' || RPAD(A1.COLUMN_VARIABLE2, B1.COLUMN_VARIABLE_MAX_LENGTH, ' ')
+                                || '() { return '
+                                || RPAD(A1.COLUMN_VARIABLE, B1.COLUMN_VARIABLE_MAX_LENGTH, ' ')
+                                || '; }'                    AS GETTER_FUNC
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_COLUMN_MAX_LENGTH        B1               <!-- [컬럼최대길이] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- SETTER 함수를 조회한다. -->
+                        A2.SETTER_FUNC
+                FROM    (
+                        SELECT  'public void'
+                                || ' set' || RPAD(A1.COLUMN_VARIABLE2, B1.COLUMN_VARIABLE_MAX_LENGTH, ' ')
+                                || '(String str) { this.'
+                                || RPAD(A1.COLUMN_VARIABLE, B1.COLUMN_VARIABLE_MAX_LENGTH, ' ')
+                                || ' = str; }'        AS SETTER_FUNC
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_COLUMN_MAX_LENGTH        B1               <!-- [컬럼최대길이] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- TOSTRING 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT  '  + 	", '
+                                || A1.COLUMN_VARIABLE
+                                || '=" + '
+                                || A1.COLUMN_VARIABLE
+                                                            AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- 변수 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT  A1.COLUMN_VARIABLE          AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- 주석 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT  A1.COLUMN_COMMENT           AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- 컬럼명 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT  A1.COLUMN_NAME              AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- NOT NULL 변수 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT  A1.COLUMN_VARIABLE          AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        WHERE   A1.NULLABLE                 =  'N'
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- NOT NULL 코드 변수 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT  A1.COLUMN_VARIABLE          AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        WHERE   REGEXP_REPLACE(A1.COLUMN_NAME, '[0-9]', '')  LIKE  '%CODE'
+                        AND     A1.NULLABLE                 =  'N'
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- NOT NULL 주석 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT  A1.COLUMN_COMMENT           AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        WHERE   A1.NULLABLE                 =  'N'
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- NOT NULL 코드 주석 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT  A1.COLUMN_COMMENT           AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        WHERE   REGEXP_REPLACE(A1.COLUMN_NAME, '[0-9]', '')  LIKE  '%CODE'
+                        AND     A1.NULLABLE                 =  'N'
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- 길이 구문을 조회한다. -->
+                        A2.TO_STRING
+                FROM    (
+                        SELECT ( CASE WHEN 'VARCHAR2' = A1.DATATYPE
+                                           THEN CAST(A1.DATA_LENGTH AS VARCHAR2(4))
+                                      WHEN 'CHAR'     = A1.DATATYPE
+                                           THEN CAST(A1.DATA_LENGTH AS VARCHAR2(4))
+                                      WHEN 'NUMBER'   = A1.DATATYPE AND A1.DATA_PRECISION IS NOT NULL
+                                           THEN A1.DATA_PRECISION || ',' || COALESCE(A1.DATA_SCALE, 0)
+                                      ELSE      '0' END )   AS TO_STRING
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- String[] 설정 구문을 조회한다. -->
+                        A2.STR_ARR_SET
+                FROM    (
+                        SELECT  'String[] '
+                                || RPAD('arr' || A1.COLUMN_VARIABLE2 || 'List', 3 + B1.COLUMN_VARIABLE_MAX_LENGTH + 4, ' ')
+                                || ' = '
+                                || LPAD('vo.get' || A1.COLUMN_VARIABLE2 || '().split(Base.DELI12, -1);', 6 + B1.COLUMN_VARIABLE_MAX_LENGTH + 26, ' ')
+                                                            AS STR_ARR_SET
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_COLUMN_MAX_LENGTH        B1               <!-- [컬럼최대길이] -->
+                        WHERE   A1.COLUMN_NAME      NOT IN ('RGST_DTM', 'RGST_USER_ID', 'UPDT_DTM', 'UPDT_USER_ID')
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- vo.set...() 구문을 조회한다. -->
+                        A2.VO_SET
+                FROM    (
+                        SELECT  LPAD('vo.set' || A1.COLUMN_VARIABLE2 || '(', 6 + B1.COLUMN_VARIABLE_MAX_LENGTH + 1, ' ') ||
+                                LPAD('arr' || A1.COLUMN_VARIABLE2 || 'List[intIndex]);', 3 + B1.COLUMN_VARIABLE_MAX_LENGTH + 16, ' ')
+                                                            AS VO_SET
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        CROSS JOIN
+                                CB_COLUMN_MAX_LENGTH        B1               <!-- [컬럼최대길이] -->
+                        WHERE   A1.COLUMN_NAME      NOT IN ('RGST_DTM', 'RGST_USER_ID', 'UPDT_DTM', 'UPDT_USER_ID')
+                        ORDER BY
+                                A1.COLUMN_ID                ASC
+                        )                       A2
+                UNION ALL
+                SELECT  <!-- 빈행을 추가한다. -->
+                        NULL
+                FROM    CB_INPUT_VALUE                                       <!-- [입력값] -->
+                UNION ALL
+                SELECT  <!-- String[] 초기화 구문을 조회한다. -->
+                        A2.STR_ARR_INIT
+                FROM    (
+                        SELECT  'arr' || A1.COLUMN_VARIABLE2 || 'List = '
+                                                            AS STR_ARR_INIT
+                        FROM    CB_NEW_COLUMN_DTL           A1               <!-- [신규컬럼내역] -->
+                        WHERE   A1.COLUMN_NAME      NOT IN ('RGST_DTM', 'RGST_USER_ID', 'UPDT_DTM', 'UPDT_USER_ID')
+                        ORDER BY
+                                A1.COLUMN_ID                DESC
+                        )                       A2
+                )
+
+        SELECT  ROWNUM                          AS ROW_ID                    <!-- 행ID -->
+              , QUERY                           AS QUERY                     <!-- 쿼리 -->
+        FROM    CB_INQR_DTL                                                  <!-- [조회내역] -->
+    </select>
+
+    <!-- 항목 목록 등록 //-->
+    <insert id="tableOra.insertList" parameterType="com.ecosian.epfse.develop.table.dao.vo.TableVO">
+        INSERT INTO TB_ITEM                                                  <!-- [항목] -->
+        (
+                /* sqlMapId(tableOra.insertList) */
+                LANG_CODE                                                    <!-- V(20)   N 언어코드     -->
+              , PATH_NAME                                                    <!-- V(200)  N 경로명       -->
+              , ITEM_ID                                                      <!-- V(20)   N 항목ID       -->
+              , ITEM_NAME                                                    <!-- V(200)  N 항목명       -->
+              , INTRR_NAME                                                   <!-- V(200)  Y 내부명       -->
+        )
+        WITH    CB_PATH_NAME                                                 <!-- [경로명] -->
+                AS
+                (
+                SELECT  #{pathNamePrfx} || 'Grid.do'  AS PATH_NAME
+                      , #{tableKrnName}               AS SCR_TITLE
+                      , 1                             AS PATH_NO
+                FROM    DUAL
+                )
+        SELECT  #{userLangCode}                 AS LANG_CODE                 <!-- V(20)   N 언어코드     -->
+              , P1.PATH_NAME                                                 <!-- V(200)  N 경로명       -->
+              , LOWER(SUBSTR(A1.COLUMN_NAME, 1, 1)) || REPLACE(SUBSTR(INITCAP(A1.COLUMN_NAME), 2), '_', '')
+                                                AS ITEM_ID                   <!-- V(20)   N 항목ID       -->
+              , B1.COMMENTS                     AS ITEM_NAME                 <!-- V(200)  N 항목명       -->
+              , '테이블 조회 자동등록'          AS INTRR_NAME                <!-- V(200)  Y 내부명       -->
+        FROM    SYS.ALL_TAB_COLUMNS             A1                           <!-- [모든 테이블의 컬럼내역] -->
+        CROSS JOIN
+                CB_PATH_NAME                    P1                           <!-- [경로명] -->
+        LEFT OUTER JOIN
+                SYS.ALL_COL_COMMENTS            B1                           <!-- [모든 컬럼의 주석내역] -->
+                ON  B1.OWNER                    =  A1.OWNER                  <!-- V(30)   N 소유자       -->
+                AND B1.TABLE_NAME               =  A1.TABLE_NAME             <!-- V(30)   N 테이블명     -->
+                AND B1.COLUMN_NAME              =  A1.COLUMN_NAME            <!-- V(30)   N 컬럼명       -->
+        WHERE   A1.OWNER                        =  #{ownerName}              <!-- V(30)   N 소유자       -->
+        AND     A1.TABLE_NAME                   =  #{tableEngName}           <!-- V(30)   N 테이블명     -->
+        AND     NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_ITEM      AA                           <!-- [항목] -->
+                           WHERE   AA.LANG_CODE =  #{userLangCode}           <!-- V(20)   N 언어코드     -->
+                           AND     AA.PATH_NAME =  P1.PATH_NAME              <!-- V(200)  N 경로명       -->
+                           AND     AA.ITEM_ID   =  LOWER(SUBSTR(A1.COLUMN_NAME, 1, 1)) || REPLACE(SUBSTR(INITCAP(A1.COLUMN_NAME), 2), '_', '')  <!-- V(20)   N 항목ID       -->
+                           )
+        AND     A1.COLUMN_NAME         NOT IN  ('RGST_DTM', 'RGST_USER_ID', 'UPDT_DTM', 'UPDT_USER_ID')
+        AND     REGEXP_REPLACE(A1.COLUMN_NAME, '[0-9]', '')  NOT LIKE  '%SEQ'
+        UNION ALL
+        SELECT  #{userLangCode}                 AS LANG_CODE                 <!-- V(20)   N 언어코드     -->
+              , P1.PATH_NAME                                                 <!-- V(200)  N 경로명       -->
+              , 'scrTitle'                      AS ITEM_ID                   <!-- V(20)   N 항목ID       --><!-- 화면제목 -->
+              , P1.SCR_TITLE                    AS ITEM_NAME                 <!-- V(200)  N 항목명       -->
+              , '테이블 조회 자동등록'          AS INTRR_NAME                <!-- V(200)  Y 내부명       -->
+        FROM    CB_PATH_NAME                    P1                           <!-- [경로명] -->
+        WHERE   NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_ITEM      AA                           <!-- [항목] -->
+                           WHERE   AA.LANG_CODE =  #{userLangCode}           <!-- V(20)   N 언어코드     -->
+                           AND     AA.PATH_NAME =  P1.PATH_NAME              <!-- V(200)  N 경로명       -->
+                           AND     AA.ITEM_ID   =  'scrTitle'                <!-- V(20)   N 항목ID       -->
+                           )
+    </insert>
+
+    <!-- 메뉴 목록 등록 //-->
+    <insert id="tableOra.insertMenuList" parameterType="com.ecosian.epfse.develop.table.dao.vo.TableVO">
+        INSERT INTO TB_MENU                                                  <!-- [메뉴] -->
+        (
+                /* sqlMapId(tableOra.insertMenuList) */
+                MENU_NO                                                      <!-- N(10,0) N 메뉴번호     -->
+              , INTRR_NAME                                                   <!-- V(200)  N 내부명       -->
+              , PRNTS_MENU_NO                                                <!-- N(10,0) Y 부모메뉴번호 -->
+              , MENU_ADDR_NAME                                               <!-- V(200)  Y 메뉴주소명   -->
+              , CLSFY_USE_YN                                                 <!-- C(1)    N 구분사용여부 -->
+              , DISP_ORDER_NO                                                <!-- N(10,0) N 표시순서번호 -->
+              , DISP_YN                                                      <!-- C(1)    N 표시여부     -->
+              , USE_YN                                                       <!-- C(1)    N 사용여부     -->
+              , AUTH_CODE                                                    <!-- V(200)  Y 권한코드     -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시     -->
+              , RGST_USER_ID                                                 <!-- V(100)  N 등록사용자ID -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시     -->
+              , UPDT_USER_ID                                                 <!-- V(100)  Y 수정사용자ID -->
+        )
+        WITH    CB_MENU_ADDR                                                 <!-- [메뉴주소] -->
+                AS
+                (
+                SELECT  #{pathNamePrfx} || 'Grid.do'  AS MENU_ADDR_NAME
+                      , 'Y'                           AS DISP_YN             <!-- 여 -->
+                      , 1                             AS ROW_NO
+                FROM    DUAL
+                )
+        SELECT  (
+                SELECT  COALESCE(MAX(AA.MENU_NO), 0)                         <!-- N(10,0) N 메뉴번호     -->
+                FROM    TB_MENU                 AA                           <!-- [메뉴] -->
+                ) + A1.ROW_NO                   AS MENU_NO                   <!-- N(10,0) N 메뉴번호     -->
+              , '테이블 조회 자동등록'          AS INTRR_NAME                <!-- V(200)  N 내부명       -->
+              , (
+                SELECT  MIN(AB.MENU_NO)                                      <!-- N(10,0) N 메뉴번호     -->
+                FROM    TB_MENU                 AB                           <!-- [메뉴] -->
+                WHERE   AB.PRNTS_MENU_NO        =  (
+                                                   SELECT  MAX(AA.MENU_NO)           <!-- N(10,0) N 메뉴번호     -->
+                                                   FROM    TB_MENU           AA      <!-- [메뉴] -->
+                                                   WHERE   AA.PRNTS_MENU_NO IS NULL  <!-- N(10,0) Y 부모메뉴번호 -->
+                                                   AND     AA.USE_YN         = 'Y'   <!-- C(1)    N 사용여부     --><!-- 여 -->
+                                                   )
+                AND     AB.USE_YN               = 'Y'                        <!-- C(1)    N 사용여부     --><!-- 여 -->
+                )                               AS PRNTS_MENU_NO             <!-- N(10,0) Y 부모메뉴번호 -->
+              , A1.MENU_ADDR_NAME                                            <!-- V(200)  Y 메뉴주소명   -->
+              , 'Y'                             AS CLSFY_USE_YN              <!-- C(1)    N 구분사용여부 --><!-- 여 -->
+              , 9999999999                      AS DISP_ORDER_NO             <!-- N(10,0) N 표시순서번호 -->
+              , A1.DISP_YN                                                   <!-- C(1)    N 표시여부     -->
+              , 'Y'                             AS USE_YN                    <!-- C(1)    N 사용여부     --><!-- 여 -->
+              , NULl                            AS AUTH_CODE                 <!-- V(200)  Y 권한코드     -->
+              , SYSDATE                         AS RGST_DTM                  <!-- DATE    N 등록일시     -->
+              , #{rgstUserId}                   AS RGST_USER_ID              <!-- V(100)  N 등록사용자ID -->
+              , NULL                            AS UPDT_DTM                  <!-- DATE    Y 수정일시     -->
+              , NULL                            AS UPDT_USER_ID              <!-- V(100)  Y 수정사용자ID -->
+        FROM    CB_MENU_ADDR                    A1                           <!-- [메뉴주소] -->
+        WHERE   NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_MENU            AA                     <!-- [메뉴] -->
+                           WHERE   AA.MENU_ADDR_NAME  =  A1.MENU_ADDR_NAME   <!-- V(200)  Y 메뉴주소명   -->
+                           )
+    </insert>
+
+    <!-- 메뉴명 목록 등록 //-->
+    <insert id="tableOra.insertMenuNameList" parameterType="com.ecosian.epfse.develop.table.dao.vo.TableVO">
+        INSERT INTO TB_MENU_NAME                                             <!-- [메뉴명] -->
+        (       /* sqlMapId(tableOra.insertMenuNameList) */
+                LANG_CODE                                                    <!-- V(20)   N 언어코드     -->
+              , MENU_NO                                                      <!-- N(10,0) N 메뉴번호     -->
+              , MENU_NAME                                                    <!-- V(200)  N 메뉴명       -->
+        )
+        WITH    CB_MENU_NO                                                   <!-- [메뉴주소] -->
+                AS
+                (
+                SELECT  MAX(A1.MENU_NO)         AS MENU_NO
+                      , #{tableKrnName}         AS MENU_NAME
+                FROM    TB_MENU                 A1                           <!-- [메뉴] -->
+                WHERE   A1.MENU_ADDR_NAME       =  #{pathNamePrfx} || 'Grid.do'  <!-- V(200)  Y 메뉴주소명   -->
+                AND     A1.DISP_YN              =  'Y'                       <!-- C(1)    N 표시여부     --><!-- 여 -->
+                AND     A1.USE_YN               =  'Y'                       <!-- C(1)    N 사용여부     --><!-- 여 -->
+                )
+        SELECT  #{userLangCode}                 AS LANG_CODE                 <!-- V(20)   N 언어코드     -->
+              , A1.MENU_NO                                                   <!-- N(10,0) N 메뉴번호     -->
+              , A1.MENU_NAME                                                 <!-- V(200)  N 메뉴명       -->
+        FROM    CB_MENU_NO                      A1                           <!-- [메뉴주소] -->
+        WHERE   NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_MENU_NAME AA                           <!-- [메뉴명] -->
+                           )
+
+    </insert>
+</mapper>

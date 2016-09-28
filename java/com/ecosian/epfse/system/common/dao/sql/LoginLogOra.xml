@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="loginLogOra">
+    <!-- 등록 -->
+    <!-- 설명 : LoginServiceImpl 클래스에서 사용한다. -->
+    <!-- 참고) 오라클의 경우 INSERT - WITH - SELECT 순서이나 MS SQL SERVER 의 경우 WITH - INSERT - SELECT 순서이다. -->
+    <insert id="loginLogOra.insertInfo" parameterType="com.ecosian.epfse.system.common.dao.vo.LoginLogVO">
+        INSERT INTO TB_LOGIN_LOG
+        (       /* sqlMapId(loginLogOra.insertInfo) */
+                LOG_ID                                                       <!-- V(20)  N 로그ID   -->
+              , USER_ID                                                      <!-- V(20)  N 사용자ID -->
+              , CLSFY_CODE                                                   <!-- V(20)  N 구분코드 -->
+              , ADDR_NAME                                                    <!-- V(20)  N 주소명   -->
+              , SESSN_NAME                                                   <!-- V(20)  N 세션명   -->
+              , BFORE_ADDR_NAME                                              <!-- V(20)  N 전주소명 -->
+              , BFORE_SESSN_NAME                                             <!-- V(20)  N 전세션명 -->
+        )
+        WITH
+                CB_DTM AS ( SELECT TO_CHAR(SYSTIMESTAMP, 'YYYYMMDDHH24MISSFF3') AS SYS_DTM FROM DUAL ) <!-- 2012-01-11 09:24:11.123 = 20120111092411123 -->
+        SELECT
+                CAST(CAST(COALESCE(MAX(B1.LOG_ID), A1.SYS_DTM || '000') AS NUMBER) + 1 AS CHAR(20)) <!-- V(20)  N 로그ID   -->
+              , #{userId}                                                    <!-- V(20)  N 사용자ID -->
+              , #{clsfyCode}                                                 <!-- V(20)  N 구분코드 -->
+              , #{addrName}                                                  <!-- V(20)  N 주소명   -->
+              , #{sessnName}                                                 <!-- V(20)  N 세션명   -->
+              , #{bforeAddrName}                                             <!-- V(20)  N 전주소명 -->
+              , #{bforeSessnName}                                            <!-- V(20)  N 전세션명 -->
+
+        FROM    CB_DTM                       A1                              <!-- [일시] -->
+        LEFT OUTER JOIN
+                TB_LOGIN_LOG                 B1                              <!-- [로그인로그] -->
+                ON B1.LOG_ID                 LIKE A1.SYS_DTM || '%'          <!-- V(20)  N 로그ID   -->
+    </insert>
+</mapper>

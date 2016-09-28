@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="notiAttchOra">
+    <resultMap type="com.ecosian.epfse.system.noti.dao.vo.NotiAttchVO" id="result">
+        <result property="attchId"      column="ATTCH_ID"       />
+        <result property="orgFileName"  column="ORG_FILE_NAME"  />
+        <result property="fileSizeAmt"  column="FILE_SIZE_AMT"  />
+        <result property="sizeUnitCode" column="SIZE_UNIT_CODE" />
+        <result property="attchHref"    column="ATTCH_HREF"     />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="notiAttchOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.system.noti.dao.vo.NotiAttchVO">
+        SELECT  /* sqlMapId(notiAttch.selectList) */
+                Z1.ATTCH_ID                                                  <!-- V(20)   N 첨부ID       -->
+              , Z1.ORG_FILE_NAME                                             <!-- V(200)  N 원본파일명   -->
+              , Z1.FILE_SIZE_AMT                                             <!-- N(21,6) N 파일크기량   -->
+              , Z1.SIZE_UNIT_CODE                                            <!-- V(20)   N 크기단위코드 -->
+              , Z1.ATTCH_HREF                                                <!-- 첨부HREF -->
+        FROM    VW_ATTCH_HREF                Z1                              <!-- [첨부HREF] -->
+        INNER JOIN
+                TB_NOTI_ATTCH                A1                              <!-- [공지사항첨부] -->
+                ON  A1.SEQ                   =  #{rowId}                     <!-- N(10,0) N 첨부일련번호 -->
+                AND A1.ATTCH_ID              =  Z1.ATTCH_ID                  <!-- V(20)   N 첨부ID       -->
+        ORDER BY
+                Z1.ATTCH_ID                  ASC
+    </select>
+
+    <!-- 목록 등록 -->
+    <insert id="notiAttchOra.insertList" parameterType="com.ecosian.epfse.system.noti.dao.vo.NotiAttchVO">
+        INSERT INTO TB_NOTI_ATTCH                                            <!-- [공지사항첨부] -->
+        (       /* sqlMapId(notiAttch.insertList) */
+                SEQ                                                          <!-- N(10,0) N 일련번호     -->
+              , ATTCH_SEQ                                                    <!-- N(10,0) N 첨부일련번호 -->
+              , ATTCH_ID                                                     <!-- V(20)   N 첨부ID       -->
+        )
+        SELECT
+                #{rowId}                                                     <!-- N(10,0) N 일련번호     -->
+             ,  (
+                SELECT  COALESCE(MAX(AA.ATTCH_SEQ), 0) AS ATTCH_NO
+                FROM    TB_NOTI_ATTCH       AA                               <!-- [공지사항첨부] -->
+                WHERE   AA.SEQ              =  #{rowId}
+                ) + ROWNUM                  AS ATTCH_SEQ                     <!-- N(10,0) N 첨부일련번호 -->
+              , Z1.ATTCH_ID                                                  <!-- V(20)   N 첨부ID       -->
+        FROM    TB_ATTCH                    Z1                               <!-- [첨부] -->
+        WHERE   Z1.ATTCH_ID                 IN (${rowIdList})                <!-- V(20)   N 첨부ID       -->
+        AND     NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_NOTI_ATTCH  AB                         <!-- [공지사항첨부] -->
+                           WHERE   AB.SEQ         =  #{rowId}                <!-- N(10,0) N 일련번호     -->
+                           AND     AB.ATTCH_ID    =  Z1.ATTCH_ID             <!-- V(20)   N 첨부ID       -->
+                           )
+    </insert>
+
+    <!-- 목록 삭제 -->
+    <delete id="notiAttchOra.deleteList" parameterType="com.ecosian.epfse.system.noti.dao.vo.NotiAttchVO">
+        DELETE  /* sqlMapId(notiAttch.deleteList) */
+        FROM    TB_NOTI_ATTCH                                                <!-- [공지사항첨부] -->
+        WHERE   SEQ                          =  #{rowId}                     <!-- N(10,0) N 일련번호     -->
+        <if test='null != rowIdList and "" != rowIdList'>
+        AND     ATTCH_ID                     NOT IN (${rowIdList})           <!-- V(20)   N 첨부ID       -->
+        </if>
+    </delete>
+</mapper>

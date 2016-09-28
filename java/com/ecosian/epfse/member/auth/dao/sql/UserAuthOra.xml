@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="userAuthOra">
+    <resultMap type="com.ecosian.epfse.member.auth.dao.vo.UserAuthVO" id="result">
+        <result property="userId"   column="USER_ID"   />
+        <result property="userName" column="USER_NAME" />
+        <result property="adminYn"  column="ADMIN_YN"  />
+        <result property="rowId"    column="ROW_ID"    />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="userAuthOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.member.auth.dao.vo.UserAuthVO">
+        WITH    /* sqlMapId(userAuthOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  A1.USER_ID                  AS USER_ID               <!-- V(100)  N 사용자ID     -->
+                      , U1.USER_NAME                AS USER_NAME             <!-- 사용자명               --><!-- V(200)  N 사용자명   -->
+                      , U1.ADMIN_YN                 AS ADMIN_YN              <!-- C(10)   N 관리자여부   -->
+                      , A1.USER_ID                  AS ROW_ID                <!-- 행ID                   -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.USER_ID ASC)
+                                                    AS ROW_NO                <!-- 행번호                 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_USER_AUTH                A1                       <!-- [사용자권한] -->
+                LEFT OUTER JOIN
+                        TB_USER                     U1                       <!-- [사용자] -->
+                        ON  U1.USER_ID              =  A1.USER_ID            <!-- V(100)  N 사용자ID     -->
+                        AND U1.USE_YN               =  'Y'                   <!-- C(1)    N 사용여부     --><!-- 여 -->
+                WHERE   A1.AUTH_ID                  =  #{authId}             <!-- V(20)   N 권한ID       -->
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT
+                A1.USER_ID                                                   <!-- V(100)  N 사용자ID     -->
+              , A1.USER_NAME                                                 <!-- 사용자명               --><!-- V(200)  N 사용자명   -->
+              , A1.ADMIN_YN                                                  <!-- C(10)   N 관리자여부   -->
+              , A1.ROW_ID                                                    <!-- 행ID                   -->
+              , A1.ROW_NO                                                    <!-- 행번호                 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND     B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 목록 등록 -->
+    <insert id="userAuthOra.insertList" parameterType="com.ecosian.epfse.member.auth.dao.vo.UserAuthVO">
+        INSERT INTO TB_USER_AUTH                                             <!-- [사용자권한] -->
+        (       /* sqlMapId(userAuthOra.insertList) */
+                AUTH_ID                                                      <!-- V(20)   N 권한ID       -->
+              , USER_ID                                                      <!-- V(100)  N 사용자ID     -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시     -->
+              , RGST_USER_ID                                                 <!-- V(100)  N 등록사용자ID -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시     -->
+              , UPDT_USER_ID                                                 <!-- V(100)  Y 수정사용자ID -->
+        )
+        SELECT  #{authId}                                                    <!-- V(20)   N 권한ID       -->
+              , A1.USER_ID                                                   <!-- V(100)  N 사용자ID     -->
+              , SYSDATE                                                      <!-- DATE    N 등록일시     -->
+              , #{rgstUserId}                                                <!-- V(100)  N 등록사용자ID -->
+              , NULL                                                         <!-- DATE    Y 수정일시     -->
+              , NULL                                                         <!-- V(100)  Y 수정사용자ID -->
+        FROM    TB_USER                      A1                              <!-- [사용자] -->
+        WHERE   A1.USER_ID                   IN (${rowId})                   <!-- V(100)  N 사용자ID     -->
+        AND     NOT EXISTS (
+                           SELECT  <!-- 권한이 등록된 사용자인지 검증한다. -->
+                                   1
+                           FROM    TB_USER_AUTH  AA                          <!-- [사용자권한] -->
+                           WHERE   AA.USER_ID    =  A1.USER_ID
+                           )
+    </insert>
+
+    <!-- 권한 수정 -->
+    <!-- 설명 : 권한 클래스 저장시 사용한다. -->
+    <update id="userAuthOra.updateAuthInfo" parameterType="com.ecosian.epfse.member.auth.dao.vo.UserAuthVO">
+        UPDATE  TB_USER_AUTH                                                 <!-- [사용자권한] -->
+        SET     /* sqlMapId(userAuthOra.updateAuthInfo) */
+                AUTH_ID                      =  #{authId}                    <!-- V(20)   N 권한ID       -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시     -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(100)  Y 수정사용자ID -->
+        WHERE   AUTH_ID                      =  #{rowId}                     <!-- V(20)   N 권한ID       -->
+    </update>
+
+    <!-- 사용자 수정 -->
+    <!-- 설명 : 사용자 클래스 저장시 사용한다. -->
+    <update id="userAuthOra.updateUserIdInfo" parameterType="com.ecosian.epfse.member.auth.dao.vo.UserAuthVO">
+        UPDATE  TB_USER_AUTH                                                 <!-- [사용자권한] -->
+        SET     /* sqlMapId(userAuthOra.updateUserIdInfo) */
+                USER_ID                      =  #{userId}                    <!-- V(100)  N 사용자ID     -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시     -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(100)  Y 수정사용자ID -->
+        WHERE   USER_ID                      =  #{rowId}                     <!-- V(100)  N 사용자ID     -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="userAuthOra.deleteList" parameterType="com.ecosian.epfse.member.auth.dao.vo.UserAuthVO">
+        DELETE  /* sqlMapId(userAuthOra.deleteList) */
+        FROM    TB_USER_AUTH                                                 <!-- [사용자권한] -->
+        WHERE   AUTH_ID                      =  #{authId}                    <!-- V(20)   N 권한ID       -->
+        AND     USER_ID                      IN (${rowId})                   <!-- V(20)   N 사용자ID     -->
+    </delete>
+
+    <!-- 권한 목록 삭제 -->
+    <!-- 설명 : 권한 클래스 삭제시 사용한다. -->
+    <delete id="userAuthOra.deleteAuthList" parameterType="com.ecosian.epfse.member.auth.dao.vo.UserAuthVO">
+        DELETE  /* sqlMapId(userAuthOra.deleteAuthList) */
+        FROM    TB_USER_AUTH                                                 <!-- [사용자권한] -->
+        WHERE   AUTH_ID                      IN (${rowId})                   <!-- V(20)   N 권한ID       -->
+    </delete>
+
+    <!-- 사용자 목록 삭제 -->
+    <!-- 설명 : 사용자 클래스 삭제시 사용한다. -->
+    <delete id="userAuthOra.deleteUserList" parameterType="com.ecosian.epfse.member.auth.dao.vo.UserAuthVO">
+        DELETE  /* sqlMapId(userAuthOra.deleteUserList) */
+        FROM    TB_USER_AUTH                                                 <!-- [사용자권한] -->
+        WHERE   USER_ID                      IN (${rowId})                   <!-- V(100)  N 사용자ID     -->
+    </delete>
+</mapper>

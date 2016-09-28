@@ -1,0 +1,34 @@
+@charset "utf-8";
+@import url('./default.css');
+@import url('./layout.css');
+@import url('./common.css');
+
+body { padding:0; background:#f9f9f9 url('../images/login/bgLoginBody.png') repeat-x 0 30px; }
+
+#header div.wrap span span,
+#loginBox > div p span,
+#loginBox > div input.inputText,
+#loginBox > div button span { background:url('../images/login/bgLogin.png') no-repeat 0 0; }
+
+#header { height:30px; overflow:hidden; }
+#header div.wrap > span { float:right; position:relative; width:40px; height:30px; border:1px solid #828282; border-width:0 1px; }
+#header div.wrap span span { background-position:-420px 0; }
+
+#background { width:960px; height:400px; margin:0 auto; background:url('../images/login/bgLoginHead.jpg') no-repeat 0 0; }
+
+#loginBox { position:absolute; top:50%; left:50%; width:960px; height:430px; margin:-215px 0 0 -480px; }
+#loginBox h1 { margin-bottom:30px; }
+#loginBox > div { width:944px; height:344px; border:8px solid #e9e9e9; background-color:#fff; }
+#loginBox > div p { float:left; position:relative; width:396px; height:249px; margin:52px 0 0 48px; }
+#loginBox > div div { float:right; position:relative; width:344px; margin:118px 50px 0 0; }
+#loginBox > div input.inputText { display:block; box-sizing:border-box; width:248px; height:40px; margin-bottom:8px; padding:0 11px; border:1px solid #ccc; color:#999; font-size:1.33em; line-height:38px; }
+#loginBox > div input.inputText.uid { background-position:-420px -82px; }
+#loginBox > div input.inputText.upass { background-position:-420px -121px; }
+#loginBox > div input.inputText.off { background:none; }
+#loginBox > div label { float:left; cursor:pointer; }
+#loginBox > div label input { float:left; width:13px; height:13px; margin:0 5px 0 0; padding:0; }
+#loginBox > div label span { float:left; line-height:13px; }
+#loginBox > div button { position:absolute; top:0; right:0; width:88px; height:89px; }
+#loginBox > div button span { background-position:-420px -160px; }
+
+#footer { position:fixed; bottom:0; width:100%; }

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="authOra">
+    <resultMap type="com.ecosian.epfse.menuauth.auth.dao.vo.AuthVO" id="result">
+        <result property="authId"     column="AUTH_ID"      />
+        <result property="authName"   column="AUTH_NAME"    />
+        <result property="anonyYn"    column="ANONY_YN"     />
+        <result property="rowId" column="ROW_ID" />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.system.common.dao.vo.ComboVO" id="resultCombo">
+        <result property="userdefCode" column="USERDEF_CODE" />
+        <result property="codeName"    column="CODE_NAME"    />
+        <result property="chcValue"    column="CHC_VALUE"    />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="authOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.AuthVO">
+        WITH    /* sqlMapId(authOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  A1.AUTH_ID                                           <!-- V(20)   N 권한ID         -->
+                      , A1.AUTH_NAME                                         <!-- V(200)  N 권한명         -->
+                      , A1.ANONY_YN                                          <!-- C(1)    N 익명여부       -->
+                      , A1.AUTH_ID                  AS ROW_ID                <!-- 행ID -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.AUTH_ID ASC)
+                                                    AS ROW_NO                <!-- 행번호 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_AUTH                     A1                       <!-- [권한] -->
+                <where>
+                <if test='null != authId and "" != authId'>
+                AND     A1.AUTH_ID                  =  #{authId}             <!-- V(20)   N 권한ID         -->
+                </if>
+                </where>
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT
+                A1.AUTH_ID                                                   <!-- V(20)   N 권한ID         -->
+              , A1.AUTH_NAME                                                 <!-- V(200)  N 권한명         -->
+              , A1.ANONY_YN                                                  <!-- C(1)    N 익명여부       -->
+              , A1.ROW_ID                                                    <!-- 행ID -->
+              , A1.ROW_NO                                                    <!-- 행번호 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND     B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 콤보 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="authOra.selectComboList" resultMap="resultCombo" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.AuthVO">
+        SELECT  /* sqlMapId(authOra.selectComboList) */
+                A1.AUTH_ID                   AS USERDEF_CODE                 <!-- V(20)   N 권한ID       -->
+              , A1.AUTH_ID || '. ' || A1.AUTH_NAME || ( CASE WHEN 'Y' = A1.ANONY_YN THEN ' : anonymous' ELSE NULL END )
+                                             AS CODE_NAME                    <!-- V(200)  N 권한명       -->
+              , NULL                         AS CHC_VALUE                    <!-- 선택값                 -->
+        FROM    TB_AUTH                      A1                              <!-- [권한] -->
+        <if test='null != anonyYn and "" != anonyYn'>
+        WHERE   A1.ANONY_YN                  =  #{anonyYn}                   <!-- C(1)    N 익명여부     -->
+        </if>
+        ORDER BY
+                CODE_NAME                    ASC
+    </select>
+
+    <!-- 중복여부 조회 -->
+    <select id="authOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.AuthVO">
+        SELECT  /* sqlMapId(authOra.selectDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_AUTH                                                      <!-- [권한] -->
+        WHERE   AUTH_ID                      =  #{authId}                    <!-- V(20)   N 권한ID         -->
+        <if test='null != rowId and "" != rowId'>
+        AND     AUTH_ID                      != #{rowId}                     <!-- V(20)   N 권한ID         -->
+        </if>
+    </select>
+
+    <!-- 등록 -->
+    <insert id="authOra.insertInfo" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.AuthVO">
+        INSERT INTO TB_AUTH                                                  <!-- [권한] -->
+        (       /* sqlMapId(authOra.insertInfo) */
+                AUTH_ID                                                      <!-- V(20)   N 권한ID         -->
+              , AUTH_NAME                                                    <!-- V(200)  N 권한명         -->
+              , ANONY_YN                                                     <!-- C(1)    N 익명여부       -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시       -->
+              , RGST_USER_ID                                                 <!-- V(20)   N 등록사용자ID   -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                                                 <!-- V(20)   Y 수정사용자ID   -->
+        )
+        VALUES
+        (
+                #{authId}                                                    <!-- V(20)   N 권한ID         -->
+              , #{authName}                                                  <!-- V(200)  N 권한명         -->
+              , #{anonyYn}                                                   <!-- C(1)    N 익명여부       -->
+              , SYSDATE                                                      <!-- DATE    N 등록일시       -->
+              , #{rgstUserId}                                                <!-- V(20)   N 등록사용자ID   -->
+              , NULL                                                         <!-- DATE    Y 수정일시       -->
+              , NULL                                                         <!-- V(20)   Y 수정사용자ID   -->
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="authOra.updateInfo" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.AuthVO">
+        UPDATE  TB_AUTH                                                      <!-- [권한] -->
+        SET     /* sqlMapId(authOra.updateInfo) */
+                AUTH_ID                      =  #{authId}                    <!-- V(20)   N 권한ID         -->
+              , AUTH_NAME                    =  #{authName}                  <!-- V(200)  N 권한명         -->
+              , ANONY_YN                     =  #{anonyYn}                   <!-- C(1)    N 익명여부       -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(20)   Y 수정사용자ID   -->
+        WHERE   AUTH_ID                      =  #{rowId}                     <!-- V(20)   N 권한ID         -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="authOra.deleteList" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.AuthVO">
+        DELETE  /* sqlMapId(authOra.deleteList) */
+        FROM    TB_AUTH                                                      <!-- [권한] -->
+        WHERE   AUTH_ID                      IN (${rowId})                   <!-- V(20)   N 권한ID        -->
+    </delete>
+</mapper>

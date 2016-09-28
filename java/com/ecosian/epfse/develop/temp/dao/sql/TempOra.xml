@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="tempOra">
+    <resultMap type="com.ecosian.epfse.develop.temp.dao.vo.TempVO" id="result">
+        <result property="id2"        column="ID2"          />
+        <result property="id"         column="ID"           />
+        <result property="name"       column="NAME"         />
+        <result property="name2"      column="NAME2"        />
+        <result property="yn"         column="YN"           />
+        <result property="yn2"        column="YN2"          />
+        <result property="code"       column="CODE"         />
+        <result property="code2"      column="CODE2"        />
+        <result property="year"       column="YEAR"         />
+        <result property="year2"      column="YEAR2"        />
+        <result property="ym"         column="YM"           />
+        <result property="ym2"        column="YM2"          />
+        <result property="amt"        column="AMT"          />
+        <result property="amt2"       column="AMT2"         />
+        <result property="amtm"       column="AMTM"         />
+        <result property="amtm2"      column="AMTM2"        />
+        <result property="no"         column="NO"           />
+        <result property="no2"        column="NO2"          />
+        <result property="corpno"     column="CORPNO"       />
+        <result property="corpno2"    column="CORPNO2"      />
+        <result property="bzno"       column="BZNO"         />
+        <result property="bzno2"      column="BZNO2"        />
+        <result property="count"      column="COUNT"        />
+        <result property="count2"     column="COUNT2"       />
+        <result property="postNo"     column="POST_NO"      />
+        <result property="postNo2"    column="POST_NO2"     />
+        <result property="rate"       column="RATE"         />
+        <result property="rate2"      column="RATE2"        />
+        <result property="date1"      column="DATE1"        />
+        <result property="date2"      column="DATE2"        />
+        <result property="telNo"      column="TEL_NO"       />
+        <result property="telNo2"     column="TEL_NO2"      />
+        <result property="emailName"  column="EMAIL_NAME"   />
+        <result property="emailName2" column="EMAIL_NAME2"  />
+        <result property="rowId"      column="ROW_ID"       />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.system.common.dao.vo.StockVO" id="resultStock">
+        <result property="x"       column="X"         />
+        <result property="y"       column="Y"         />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="tempOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.develop.temp.dao.vo.TempVO">
+        WITH    /* sqlMapId(tempOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  A1.ID2                                               <!-- V(20)   N ID2              -->
+                      , A1.ID                                                <!-- V(20)   Y ID               -->
+                      , A1.NAME                                              <!-- V(200)  Y 명               -->
+                      , A1.NAME2                                             <!-- V(200)  N 명2              -->
+                      , A1.YN                                                <!-- C(1)    Y 여부             -->
+                      , A1.YN2                                               <!-- C(1)    N 여부2            -->
+                      , A1.CODE                                              <!-- V(20)   Y 코드             -->
+                      , A1.CODE2                                             <!-- V(20)   N 코드2            -->
+                      , A1.YEAR                                              <!-- C(4)    Y 년도             -->
+                      , A1.YEAR2                                             <!-- C(4)    N 년도2            -->
+                      , A1.YM                                                <!-- C(6)    Y 년월             -->
+                      , A1.YM2                                               <!-- C(6)    N 년월2            -->
+                      , A1.AMT                                               <!-- N(21,6) Y 량               -->
+                      , A1.AMT2                                              <!-- N(21,6) N 량2              -->
+                      , A1.AMTM                                              <!-- N(15,0) Y 액               -->
+                      , A1.AMTM2                                             <!-- N(15,0) N 액2              -->
+                      , A1.NO                                                <!-- N(10,0) Y 번호             -->
+                      , A1.NO2                                               <!-- N(10,0) N 번호2            -->
+                      , A1.CORPNO                                            <!-- C(13)   Y 법인등록번호     -->
+                      , A1.CORPNO2                                           <!-- C(13)   N 법인등록번호2    -->
+                      , A1.BZNO                                              <!-- C(10)   Y 사업자등록번호   -->
+                      , A1.BZNO2                                             <!-- C(10)   N 사업자등록번호2  -->
+                      , A1.COUNT                                             <!-- N(10,0) Y 수               -->
+                      , A1.COUNT2                                            <!-- N(10,0) N 수2              -->
+                      , A1.POST_NO                                           <!-- C(6)    Y 우편번호         -->
+                      , A1.POST_NO2                                          <!-- C(6)    N 우편번호2        -->
+                      , A1.RATE                                              <!-- N(17,2) Y 율               -->
+                      , A1.RATE2                                             <!-- N(17,2) N 율2              -->
+                      , A1.DATE1                                             <!-- C(8)    Y 일자1            -->
+                      , A1.DATE2                                             <!-- C(8)    N 일자2            -->
+                      , A1.TEL_NO                                            <!-- V(14)   Y 전화번호         -->
+                      , A1.TEL_NO2                                           <!-- V(14)   N 전화번호2        -->
+                      , A1.EMAIL_NAME                                        <!-- V(200)  Y 이메일명         -->
+                      , A1.EMAIL_NAME2                                       <!-- V(200)  N 이메일명2        -->
+                      , A1.ID2                      AS ROW_ID                <!-- 행ID -->
+                <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.ID2 ASC)
+                                                    AS ROW_NO                <!-- 행번호 -->
+                <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_TEMP                     A1                       <!-- [임시] -->
+                <where>
+                <if test='null != id2 and "" != id2'>
+                AND     A1.ID2                      =  #{id2}                <!-- V(20)   N ID2              -->
+                </if>
+                </where>
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT  A1.ID2                                                       <!-- V(20)   N ID2              -->
+              , A1.ID                                                        <!-- V(20)   Y ID               -->
+              , A1.NAME                                                      <!-- V(200)  Y 명               -->
+              , A1.NAME2                                                     <!-- V(200)  N 명2              -->
+              , A1.YN                                                        <!-- C(1)    Y 여부             -->
+              , A1.YN2                                                       <!-- C(1)    N 여부2            -->
+              , A1.CODE                                                      <!-- V(20)   Y 코드             -->
+              , A1.CODE2                                                     <!-- V(20)   N 코드2            -->
+              , A1.YEAR                                                      <!-- C(4)    Y 년도             -->
+              , A1.YEAR2                                                     <!-- C(4)    N 년도2            -->
+              , A1.YM                                                        <!-- C(6)    Y 년월             -->
+              , A1.YM2                                                       <!-- C(6)    N 년월2            -->
+              , A1.AMT                                                       <!-- N(21,6) Y 량               -->
+              , A1.AMT2                                                      <!-- N(21,6) N 량2              -->
+              , A1.AMTM                                                      <!-- N(15,0) Y 액               -->
+              , A1.AMTM2                                                     <!-- N(15,0) N 액2              -->
+              , A1.NO                                                        <!-- N(10,0) Y 번호             -->
+              , A1.NO2                                                       <!-- N(10,0) N 번호2            -->
+              , A1.CORPNO                                                    <!-- C(13)   Y 법인등록번호     -->
+              , A1.CORPNO2                                                   <!-- C(13)   N 법인등록번호2    -->
+              , A1.BZNO                                                      <!-- C(10)   Y 사업자등록번호   -->
+              , A1.BZNO2                                                     <!-- C(10)   N 사업자등록번호2  -->
+              , A1.COUNT                                                     <!-- N(10,0) Y 수               -->
+              , A1.COUNT2                                                    <!-- N(10,0) N 수2              -->
+              , A1.POST_NO                                                   <!-- C(6)    Y 우편번호         -->
+              , A1.POST_NO2                                                  <!-- C(6)    N 우편번호2        -->
+              , A1.RATE                                                      <!-- N(17,2) Y 율               -->
+              , A1.RATE2                                                     <!-- N(17,2) N 율2              -->
+              , A1.DATE1                                                     <!-- C(8)    Y 일자1            -->
+              , A1.DATE2                                                     <!-- C(8)    N 일자2            -->
+              , A1.TEL_NO                                                    <!-- V(14)   Y 전화번호         -->
+              , A1.TEL_NO2                                                   <!-- V(14)   N 전화번호2        -->
+              , A1.EMAIL_NAME                                                <!-- V(200)  Y 이메일명         -->
+              , A1.EMAIL_NAME2                                               <!-- V(200)  N 이메일명2        -->
+              , A1.ROW_ID                                                    <!-- 행ID -->
+              , A1.ROW_NO                                                    <!-- 행번호 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- HIGHSTOCK 조회 -->
+    <select id="tempOra.selectStockList" resultMap="resultStock" parameterType="com.ecosian.epfse.system.common.dao.vo.StockVO">
+        SELECT  /* sqlMapId(tempOra.selectStockList) */
+        ROUND( ( (TO_DATE(#{inqrStyear}||'0101', 'YYYYMMDD')+LEVEL-1) - TO_DATE('19700101', 'YYYYMMDD')) * 86400 - 32400) || '000'
+                                             AS X
+              , ROUND(DBMS_RANDOM.VALUE(1, 100), 6)  AS Y
+        FROM    DUAL                         A1
+        CONNECT BY
+                LEVEL <![CDATA[<=]]> (TO_DATE(#{inqrEdyear}||'1231', 'YYYYMMDD') - TO_DATE(#{inqrStyear}||'0101', 'YYYYMMDD') + 1)
+    </select>
+
+    <!-- 중복여부 조회 -->
+    <select id="tempOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.develop.temp.dao.vo.TempVO">
+        SELECT  /* sqlMapId(tempOra.selectDupYn) */
+
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_TEMP                                                      <!-- [임시] -->
+        WHERE   ID2                          =  #{id2}                       <!-- V(20)   N ID2              -->
+        <if test='null != rowId and "" != rowId'>
+        AND     ID2                          != #{rowId}                     <!-- V(20)   N ID2              -->
+        </if>
+    </select>
+
+    <!-- 등록 -->
+    <insert id="tempOra.insertInfo" parameterType="com.ecosian.epfse.develop.temp.dao.vo.TempVO">
+        INSERT INTO TB_TEMP                                                  <!-- [임시] -->
+        (       /* sqlMapId(tempOra.insertInfo) */
+                ID2                                                          <!-- V(20)   N ID2              -->
+              , ID                                                           <!-- V(20)   Y ID               -->
+              , NAME                                                         <!-- V(200)  Y 명               -->
+              , NAME2                                                        <!-- V(200)  N 명2              -->
+              , YN                                                           <!-- C(1)    Y 여부             -->
+              , YN2                                                          <!-- C(1)    N 여부2            -->
+              , CODE                                                         <!-- V(20)   Y 코드             -->
+              , CODE2                                                        <!-- V(20)   N 코드2            -->
+              , YEAR                                                         <!-- C(4)    Y 년도             -->
+              , YEAR2                                                        <!-- C(4)    N 년도2            -->
+              , YM                                                           <!-- C(6)    Y 년월             -->
+              , YM2                                                          <!-- C(6)    N 년월2            -->
+              , AMT                                                          <!-- N(21,6) Y 량               -->
+              , AMT2                                                         <!-- N(21,6) N 량2              -->
+              , AMTM                                                         <!-- N(15,0) Y 액               -->
+              , AMTM2                                                        <!-- N(15,0) N 액2              -->
+              , NO                                                           <!-- N(10,0) Y 번호             -->
+              , NO2                                                          <!-- N(10,0) N 번호2            -->
+              , CORPNO                                                       <!-- C(13)   Y 법인등록번호     -->
+              , CORPNO2                                                      <!-- C(13)   N 법인등록번호2    -->
+              , BZNO                                                         <!-- C(10)   Y 사업자등록번호   -->
+              , BZNO2                                                        <!-- C(10)   N 사업자등록번호2  -->
+              , COUNT                                                        <!-- N(10,0) Y 수               -->
+              , COUNT2                                                       <!-- N(10,0) N 수2              -->
+              , POST_NO                                                      <!-- C(6)    Y 우편번호         -->
+              , POST_NO2                                                     <!-- C(6)    N 우편번호2        -->
+              , RATE                                                         <!-- N(17,2) Y 율               -->
+              , RATE2                                                        <!-- N(17,2) N 율2              -->
+              , DATE1                                                        <!-- C(8)    Y 일자1            -->
+              , DATE2                                                        <!-- C(8)    N 일자2            -->
+              , TEL_NO                                                       <!-- V(14)   Y 전화번호         -->
+              , TEL_NO2                                                      <!-- V(14)   N 전화번호2        -->
+              , EMAIL_NAME                                                   <!-- V(200)  Y 이메일명         -->
+              , EMAIL_NAME2                                                  <!-- V(200)  N 이메일명2        -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시         -->
+              , RGST_USER_ID                                                 <!-- V(20)   N 등록사용자ID     -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시         -->
+              , UPDT_USER_ID                                                 <!-- V(20)   Y 수정사용자ID     -->
+        )
+        VALUES
+        (
+                #{id2}                                                       <!-- V(20)   N ID2              -->
+              , #{id}                                                        <!-- V(20)   Y ID               -->
+              , #{name}                                                      <!-- V(200)  Y 명               -->
+              , #{name2}                                                     <!-- V(200)  N 명2              -->
+              , #{yn}                                                        <!-- C(1)    Y 여부             -->
+              , #{yn2}                                                       <!-- C(1)    N 여부2            -->
+              , #{code}                                                      <!-- V(20)   Y 코드             -->
+              , #{code2}                                                     <!-- V(20)   N 코드2            -->
+              , #{year}                                                      <!-- C(4)    Y 년도             -->
+              , #{year2}                                                     <!-- C(4)    N 년도2            -->
+              , #{ym}                                                        <!-- C(6)    Y 년월             -->
+              , #{ym2}                                                       <!-- C(6)    N 년월2            -->
+              , #{amt}                                                       <!-- N(21,6) Y 량               -->
+              , #{amt2}                                                      <!-- N(21,6) N 량2              -->
+              , #{amtm}                                                      <!-- N(15,0) Y 액               -->
+              , #{amtm2}                                                     <!-- N(15,0) N 액2              -->
+              , #{no}                                                        <!-- N(10,0) Y 번호             -->
+              , #{no2}                                                       <!-- N(10,0) N 번호2            -->
+              , #{corpno}                                                    <!-- C(13)   Y 법인등록번호     -->
+              , #{corpno2}                                                   <!-- C(13)   N 법인등록번호2    -->
+              , #{bzno}                                                      <!-- C(10)   Y 사업자등록번호   -->
+              , #{bzno2}                                                     <!-- C(10)   N 사업자등록번호2  -->
+              , #{count}                                                     <!-- N(10,0) Y 수               -->
+              , #{count2}                                                    <!-- N(10,0) N 수2              -->
+              , #{postNo}                                                    <!-- C(6)    Y 우편번호         -->
+              , #{postNo2}                                                   <!-- C(6)    N 우편번호2        -->
+              , #{rate}                                                      <!-- N(17,2) Y 율               -->
+              , #{rate2}                                                     <!-- N(17,2) N 율2              -->
+              , #{date1}                                                     <!-- C(8)    Y 일자1            -->
+              , #{date2}                                                     <!-- C(8)    N 일자2            -->
+              , #{telNo}                                                     <!-- V(14)   Y 전화번호         -->
+              , #{telNo2}                                                    <!-- V(14)   N 전화번호2        -->
+              , #{emailName}                                                 <!-- V(200)  Y 이메일명         -->
+              , #{emailName2}                                                <!-- V(200)  N 이메일명2        -->
+              , SYSDATE                                                      <!-- DATE    N 등록일시         -->
+              , #{rgstUserId}                                                <!-- V(20)   N 등록사용자ID     -->
+              , NULL                                                         <!-- DATE    Y 수정일시         -->
+              , NULL                                                         <!-- V(20)   Y 수정사용자ID     -->
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="tempOra.updateInfo" parameterType="com.ecosian.epfse.develop.temp.dao.vo.TempVO">
+        UPDATE  TB_TEMP                                                      <!-- [임시] -->
+        SET     /* sqlMapId(tempOra.updateInfo) */
+
+                ID2                          =  #{id2}                       <!-- V(20)   N ID2              -->
+              , ID                           =  #{id}                        <!-- V(20)   Y ID               -->
+              , NAME                         =  #{name}                      <!-- V(200)  Y 명               -->
+              , NAME2                        =  #{name2}                     <!-- V(200)  N 명2              -->
+              , YN                           =  #{yn}                        <!-- C(1)    Y 여부             -->
+              , YN2                          =  #{yn2}                       <!-- C(1)    N 여부2            -->
+              , CODE                         =  #{code}                      <!-- V(20)   Y 코드             -->
+              , CODE2                        =  #{code2}                     <!-- V(20)   N 코드2            -->
+              , YEAR                         =  #{year}                      <!-- C(4)    Y 년도             -->
+              , YEAR2                        =  #{year2}                     <!-- C(4)    N 년도2            -->
+              , YM                           =  #{ym}                        <!-- C(6)    Y 년월             -->
+              , YM2                          =  #{ym2}                       <!-- C(6)    N 년월2            -->
+              , AMT                          =  #{amt}                       <!-- N(21,6) Y 량               -->
+              , AMT2                         =  #{amt2}                      <!-- N(21,6) N 량2              -->
+              , AMTM                         =  #{amtm}                      <!-- N(15,0) Y 액               -->
+              , AMTM2                        =  #{amtm2}                     <!-- N(15,0) N 액2              -->
+              , NO                           =  #{no}                        <!-- N(10,0) Y 번호             -->
+              , NO2                          =  #{no2}                       <!-- N(10,0) N 번호2            -->
+              , CORPNO                       =  #{corpno}                    <!-- C(13)   Y 법인등록번호     -->
+              , CORPNO2                      =  #{corpno2}                   <!-- C(13)   N 법인등록번호2    -->
+              , BZNO                         =  #{bzno}                      <!-- C(10)   Y 사업자등록번호   -->
+              , BZNO2                        =  #{bzno2}                     <!-- C(10)   N 사업자등록번호2  -->
+              , COUNT                        =  #{count}                     <!-- N(10,0) Y 수               -->
+              , COUNT2                       =  #{count2}                    <!-- N(10,0) N 수2              -->
+              , POST_NO                      =  #{postNo}                    <!-- C(6)    Y 우편번호         -->
+              , POST_NO2                     =  #{postNo2}                   <!-- C(6)    N 우편번호2        -->
+              , RATE                         =  #{rate}                      <!-- N(17,2) Y 율               -->
+              , RATE2                        =  #{rate2}                     <!-- N(17,2) N 율2              -->
+              , DATE1                        =  #{date1}                     <!-- C(8)    Y 일자1            -->
+              , DATE2                        =  #{date2}                     <!-- C(8)    N 일자2            -->
+              , TEL_NO                       =  #{telNo}                     <!-- V(14)   Y 전화번호         -->
+              , TEL_NO2                      =  #{telNo2}                    <!-- V(14)   N 전화번호2        -->
+              , EMAIL_NAME                   =  #{emailName}                 <!-- V(200)  Y 이메일명         -->
+              , EMAIL_NAME2                  =  #{emailName2}                <!-- V(200)  N 이메일명2        -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시         -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(20)   Y 수정사용자ID     -->
+        WHERE   ID2                          =  #{rowId}                     <!-- V(20)   N ID2              -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="tempOra.deleteList" parameterType="com.ecosian.epfse.develop.temp.dao.vo.TempVO">
+        DELETE  /* sqlMapId(tempOra.deleteList) */
+        FROM    TB_TEMP                                                      <!-- [임시] -->
+        WHERE   ID2                          IN (${rowId})                   <!-- V(20)   N ID2              -->
+
+    </delete>
+</mapper>

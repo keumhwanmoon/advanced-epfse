@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+    <!-- web.xml 내 Container 설정시 이용한다. -->
+
+    <bean id="logAspect" class="com.ecosian.epfse.system.common.LogAspect" /><!-- Aspect Class 사용 -->
+    <bean id="loginAspect" class="com.ecosian.epfse.system.common.LoginAspect" />
+    <bean id="itemAspect" class="com.ecosian.epfse.system.common.ItemAspect" />
+</beans>

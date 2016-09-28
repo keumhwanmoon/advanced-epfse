@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="qnaAnswrOra">
+    <!-- 등록 -->
+    <insert id="qnaAnswrOra.insertInfo" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaAnswrVO">
+        INSERT INTO TB_QNA_ANSWR                                             <!-- [Q&A 답변] -->
+        (       /* sqlMapId(notiOra.insertInfo) */
+                SEQ                                                          <!-- N(10,0) N 일련번호       -->
+              , ANSWR_CTTS                                                   <!-- CLOB    N 답변내용       -->
+              , RGST_DTM                                                     <!-- C(14)   N 등록일시       -->
+              , RGST_USER_ID                                                 <!-- V(100)  N 등록사용자ID   -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                                                 <!-- V(100)  Y 수정사용자ID   -->
+        )
+        VALUES
+        (
+                #{seq}                                                       <!-- N(10,0) N 일련번호       -->
+              , #{answrCtts:CLOB}                                            <!-- CLOB    N 답변내용       -->
+              , SYSDATE                                                      <!-- C(14)   N 등록일시       -->
+              , #{rgstUserId}                                                <!-- V(100)  N 등록사용자ID   -->
+              , NULL                                                         <!-- DATE    Y 수정일시       -->
+              , NULL                                                         <!-- V(100)  Y 수정사용자ID   -->
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="qnaAnswrOra.updateInfo" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaAnswrVO">
+        UPDATE  TB_QNA_ANSWR                                                 <!-- [Q&A 답변] -->
+        SET     /* sqlMapId(notiOra.updateInfo) */
+                ANSWR_CTTS                   =  #{answrCtts}                 <!-- CLOB    N 답변내용       -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(100)  Y 수정사용자ID   -->
+        WHERE   SEQ                          =  #{rowId}                     <!-- N(10,0) N 일련번호       -->
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="qnaAnswrOra.deleteInfo" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaAnswrVO">
+        DELETE  /* sqlMapId(notiOra.deleteInfo) */
+        FROM    TB_QNA_ANSWR                                                 <!-- [Q&A 답변] -->
+        WHERE   SEQ                          =  #{rowId}                     <!-- N(10,0) N 일련번호 -->
+    </delete>
+</mapper>

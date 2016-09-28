@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<viewlist>
+<!-- 작성 예시 -->
+    <view id="VW_VIEW_NAME">
+<!--============================================================================
+--     View한글명 : 뷰명칭
+--     View영문명 : VW_VIEW_NAME
+--     최초작성일 : 2014-01-01
+--     작  성  자 : 작성자
+----==============================================================================-->
+        CREATE OR REPLACE VIEW VW_VIEW_NAME <!-- [뷰명칭] -->
+        AS
+
+        WITH    READ ONLY ;
+
+        COMMENT ON TABLE  VW_VIEW_NAME              IS '뷰명칭';
+        COMMENT ON COLUMN VW_VIEW_NAME.COLUMN_ID    IS '컬럼명';
+    </view>
+
+    <view id="VW_ATTCH">
+<!--============================================================================
+    -- View한글명 : 첨부HREF
+    -- View영문명 : VW_ATTCH
+    -- 최초작성일 : 2014-05-16
+    -- 작  성  자 : 유광식
+----==============================================================================-->
+
+        CREATE OR REPLACE VIEW VW_ATTCH_HREF -- [첨부HREF]
+        AS
+
+        SELECT  A1.ATTCH_ID                                                 -- V(20)   N 첨부ID
+              , A1.ORG_FILE_NAME                                            -- V(200)  N 원본파일명
+              , A1.FILE_SIZE_AMT                                            -- N(21,6) N 파일크기량
+              , A1.SIZE_UNIT_CODE                                           -- V(20)   N 크기단위코드
+              , ( CASE WHEN B1.VAR_ID IS NOT NULL THEN B1.VAR_NAME ELSE NULL END ) ||
+                A1.ATTCH_PATH_NAME || A1.ATTCH_ID || '/' || A1.ORG_FILE_NAME
+                                            AS ATTCH_HREF                   -- 첨부HREF
+              , A1.ATTCH_PATH_NAME                                          -- V(200)  N 첨부경로명
+              , A1.SAVE_DTM                                                 -- C(14)   N 저장일시
+              , A1.VAR_ID                                                   -- V(20)   N 변수ID
+        FROM    TB_ATTCH                    A1                              -- [첨부]
+                LEFT OUTER JOIN TB_SYS_VAR  B1                              -- [시스템변수]
+                             ON  B1.VAR_ID  =  A1.VAR_ID                    -- V(20)   N 변수ID
+
+        WITH    READ ONLY ;
+
+        COMMENT ON TABLE  VW_ATTCH_HREF                 IS '첨부HREF' ;
+        COMMENT ON COLUMN VW_ATTCH_HREF.ATTCH_ID        IS '첨부ID' ;
+        COMMENT ON COLUMN VW_ATTCH_HREF.ORG_FILE_NAME   IS '원본파일명' ;
+        COMMENT ON COLUMN VW_ATTCH_HREF.FILE_SIZE_AMT   IS '파일크기량' ;
+        COMMENT ON COLUMN VW_ATTCH_HREF.SIZE_UNIT_CODE  IS '크기단위코드';
+        COMMENT ON COLUMN VW_ATTCH_HREF.ATTCH_HREF      IS '첨부HREF' ;
+        COMMENT ON COLUMN VW_ATTCH_HREF.ATTCH_PATH_NAME IS '첨부경로명' ;
+        COMMENT ON COLUMN VW_ATTCH_HREF.SAVE_DTM    IS '저장일시' ;
+        COMMENT ON COLUMN VW_ATTCH_HREF.VAR_ID    IS '변수ID' ;
+    </view>
+</viewlist>

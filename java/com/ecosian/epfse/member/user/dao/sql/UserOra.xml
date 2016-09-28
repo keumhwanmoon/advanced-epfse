@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="userOra">
+    <resultMap type="com.ecosian.epfse.member.user.dao.vo.UserVO" id="result">
+        <result property="userId"     column="USER_ID"      />
+        <result property="userName"   column="USER_NAME"    />
+        <result property="pwdName"    column="PWD_NAME"     />
+        <result property="useYn"      column="USE_YN"       />
+        <result property="adminYn"    column="ADMIN_YN"     />
+        <result property="langCode"   column="LANG_CODE"    />
+        <result property="rowId" column="ROW_ID" />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.member.user.dao.vo.UserVO" id="resultAuthRgstTarg">
+        <result property="userId"   column="USER_ID"   />
+        <result property="userName" column="USER_NAME" />
+        <result property="adminYn"  column="ADMIN_YN"  />
+        <result property="rowId"    column="ROW_ID"    />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="userOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.member.user.dao.vo.UserVO">
+        WITH    /* sqlMapId(userOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  A1.USER_ID                                           <!-- V(20)   N 사용자ID       -->
+                      , A1.USER_NAME                                         <!-- V(200)  N 사용자명       -->
+                      , NULL                        AS PWD_NAME              <!-- V(200)  N 비밀번호명     -->
+                      , A1.USE_YN                                            <!-- C(1)    N 사용여부       -->
+                      , A1.ADMIN_YN                                          <!-- C(1)    N 관리자여부     -->
+                      , A1.LANG_CODE                                         <!-- V(20)   N 언어코드       -->
+                      , A1.USER_ID                  AS ROW_ID                <!-- 행ID -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.USER_ID ASC)
+                                                    AS ROW_NO                <!-- 행번호 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_USER                     A1                       <!-- [사용자] -->
+                <where>
+                <if test='null != userId and "" != userId'>
+                AND     A1.USER_ID                  LIKE '%' || #{userId}   || '%'  <!-- V(20)   N 사용자ID -->
+                </if>
+                <if test='null != userName and "" != userName'>
+                AND     A1.USER_NAME                LIKE '%' || #{userName} || '%'  <!-- V(200)  N 사용자명 -->
+                </if>
+                <if test='null != useYn and "" != useYn'>
+                AND     A1.USE_YN                   =  #{useYn}              <!-- C(1)    N 사용여부       -->
+                </if>
+                <if test='null != adminYn and "" != adminYn'>
+                AND     A1.ADMIN_YN                 =  #{adminYn}            <!-- C(1)    N 관리자여부     -->
+                </if>
+                </where>
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      , A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT
+
+                A1.USER_ID                                                   <!-- V(20)   N 사용자ID       -->
+              , A1.USER_NAME                                                 <!-- V(200)  N 사용자명       -->
+              , A1.PWD_NAME                                                  <!-- V(200)  N 비밀번호명     -->
+              , A1.USE_YN                                                    <!-- C(1)    N 사용여부       -->
+              , A1.ADMIN_YN                                                  <!-- C(1)    N 관리자여부     -->
+              , A1.LANG_CODE                                                 <!-- V(20)   N 언어코드       -->
+              , A1.ROW_ID                                                    <!-- 행ID -->
+              , A1.ROW_NO                                                    <!-- 행번호 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND     B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 권한 등록 대상 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="userOra.selectAuthRgstTargList" resultMap="resultAuthRgstTarg" parameterType="com.ecosian.epfse.member.user.dao.vo.UserVO">
+        WITH    /* sqlMapId(userOra.selectAuthRgstTargList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  A1.USER_ID                                           <!-- V(100)  N 사용자ID       -->
+                      , A1.USER_NAME                                         <!-- V(200)  N 사용자명       -->
+                      , A1.ADMIN_YN                                          <!-- C(1)    N 관리자여부     -->
+                      , A1.USER_ID                  AS ROW_ID                <!-- 행ID -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.USER_ID ASC)
+                                                    AS ROW_NO                <!-- 행번호 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_USER                     A1                       <!-- [사용자] -->
+                WHERE   NOT EXISTS (
+                                   SELECT  1
+                                   FROM    TB_USER_AUTH  BA                  <!-- [사용자권한] -->
+                                   WHERE   BA.USER_ID    =  A1.USER_ID       <!-- V(100)  N 사용자ID       -->
+                                   )
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT
+                A1.USER_ID                                                   <!-- V(100)  N 사용자ID     -->
+              , A1.USER_NAME                                                 <!-- 사용자명               --><!-- V(200)  N 사용자명   -->
+              , A1.ADMIN_YN                                                  <!-- C(10)   N 관리자여부   -->
+              , A1.ROW_ID                                                    <!-- 행ID                   -->
+              , A1.ROW_NO                                                    <!-- 행번호                 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND     B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 중복여부 조회 -->
+    <select id="userOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.member.user.dao.vo.UserVO">
+        SELECT  /* sqlMapId(userOra.selectDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_USER                                                      <!-- [사용자] -->
+        WHERE   USER_ID                      =  #{userId}                    <!-- V(20)   N 사용자ID       -->
+        <if test='null != rowId and "" != rowId'>
+        AND     USER_ID                      != #{rowId}                     <!-- V(20)   N 사용자ID       -->
+        </if>
+    </select>
+
+    <!-- 관리자 존재여부 조회 -->
+    <select id="userOra.selectAdminExistYn" resultType="String" parameterType="com.ecosian.epfse.member.user.dao.vo.UserVO">
+        SELECT  /* sqlMapId(userOra.selectAdminExistYn) */
+                'Y'                          AS EXIST_YN                     <!-- 존재여부 --><!-- 여 -->
+        FROM    TB_USER                                                      <!-- [사용자] -->
+        WHERE   USE_YN                       =  'Y'                          <!-- C(1)    N 사용여부       --><!-- 여 -->
+        AND     ADMIN_YN                     =  'Y'                          <!-- C(1)    N 관리자여부     --><!-- 여 -->
+        AND     ROWNUM                       =  1
+    </select>
+
+    <!-- 등록 -->
+    <insert id="userOra.insertInfo" parameterType="com.ecosian.epfse.member.user.dao.vo.UserVO">
+        INSERT INTO TB_USER                                                  <!-- [사용자] -->
+        (       /* sqlMapId(userOra.insertInfo) */
+                USER_ID                                                      <!-- V(20)   N 사용자ID       -->
+              , USER_NAME                                                    <!-- V(200)  N 사용자명       -->
+              , PWD_NAME                                                     <!-- V(200)  N 비밀번호명     -->
+              , USE_YN                                                       <!-- C(1)    N 사용여부       -->
+              , ADMIN_YN                                                     <!-- C(1)    N 관리자여부     -->
+              , LANG_CODE                                                    <!-- V(20)   N 언어코드       -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시       -->
+              , RGST_USER_ID                                                 <!-- V(20)   N 등록사용자ID   -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                                                 <!-- V(20)   Y 수정사용자ID   -->
+        )
+        VALUES
+        (
+                #{userId}                                                    <!-- V(20)   N 사용자ID       -->
+              , #{userName}                                                  <!-- V(200)  N 사용자명       -->
+              , #{pwdName}                                                   <!-- V(200)  N 비밀번호명     -->
+              , #{useYn}                                                     <!-- C(1)    N 사용여부       -->
+              , #{adminYn}                                                   <!-- C(1)    N 관리자여부     -->
+              , #{langCode}                                                  <!-- V(20)   N 언어코드       -->
+              , SYSDATE                                                      <!-- DATE    N 등록일시       -->
+              , #{rgstUserId}                                                <!-- V(20)   N 등록사용자ID   -->
+              , NULL                                                         <!-- DATE    Y 수정일시       -->
+              , NULL                                                         <!-- V(20)   Y 수정사용자ID   -->
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="userOra.updateInfo" parameterType="com.ecosian.epfse.member.user.dao.vo.UserVO">
+        UPDATE  TB_USER                                                      <!-- [사용자] -->
+        SET     /* sqlMapId(userOra.updateInfo) */
+                USER_ID                      =  #{userId}                    <!-- V(20)   N 사용자ID       -->
+              , USER_NAME                    =  #{userName}                  <!-- V(200)  N 사용자명       -->
+              , PWD_NAME                     =  COALESCE(#{pwdName}, PWD_NAME) <!-- V(200)  N 비밀번호명   -->
+              , USE_YN                       =  #{useYn}                     <!-- C(1)    N 사용여부       -->
+              , ADMIN_YN                     =  #{adminYn}                   <!-- C(1)    N 관리자여부     -->
+              , LANG_CODE                    =  #{langCode}                  <!-- V(20)   N 언어코드       -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(20)   Y 수정사용자ID   -->
+        WHERE   USER_ID                      =  #{rowId}                     <!-- V(20)   N 사용자ID       -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="userOra.deleteList" parameterType="com.ecosian.epfse.member.user.dao.vo.UserVO">
+        DELETE  /* sqlMapId(userOra.deleteList) */
+        FROM    TB_USER                                                      <!-- [사용자] -->
+        WHERE   USER_ID                      IN (${rowId})                   <!-- V(20)   N 사용자ID       -->
+    </delete>
+</mapper>

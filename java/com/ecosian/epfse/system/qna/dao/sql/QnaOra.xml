@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="qnaOra">
+    <resultMap type="com.ecosian.epfse.system.qna.dao.vo.QnaVO" id="result">
+        <result property="newYn"        column="NEW_YN"       />
+        <result property="updtYn"       column="UPDT_YN"      />
+        <result property="answrExist"   column="ANSWR_EXIST"  />
+        <result property="titleName"    column="TITLE_NAME"   />
+        <result property="inqrCount"    column="INQR_COUNT"   />
+        <result property="rgstDtm"      column="RGST_DTM"     />
+        <result property="rgstUserName" column="RGST_USER_ID" />
+        <result property="rowId"        column="ROW_ID"       />
+
+        <result property="bltnNo"  column="BLTN_NO"  />
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+        <result property="rowNo2"  column="ROW_NO2"  />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.system.qna.dao.vo.QnaVO" id="resultInfo">
+        <result property="titleName"  column="TITLE_NAME"  />
+        <result property="ctts"       column="CTTS"        />
+        <result property="answrCtts"  column="ANSWR_CTTS"  />
+        <result property="answrExist" column="ANSWR_EXIST" />
+        <result property="inqrCount"  column="INQR_COUNT"  />
+        <result property="preInfo"    column="PRE_INFO"    />
+        <result property="nextInfo"   column="NEXT_INFO"   />
+        <result property="preRowId"   column="PRE_ROW_ID"  />
+        <result property="nextRowId"  column="NEXT_ROW_ID" />
+        <result property="rgstDtm"    column="RGST_DTM"    />
+        <result property="updtDtm"    column="UPDT_DTM"    />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="qnaOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaVO">
+        WITH    /* sqlMapId(qnaOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  ( CASE WHEN TO_CHAR(A1.RGST_DTM, 'YYYYMMDD') BETWEEN TO_CHAR(SYSDATE - (7), 'YYYYMMDD') AND TO_CHAR(SYSDATE, 'YYYYMMDD') THEN 'Y' ELSE 'N' END )
+                                                    AS NEW_YN                <!-- 신규여부                 -->
+                      , ( CASE WHEN TO_CHAR(A1.UPDT_DTM, 'YYYYMMDD') BETWEEN TO_CHAR(SYSDATE - (7), 'YYYYMMDD') AND TO_CHAR(SYSDATE, 'YYYYMMDD') THEN 'Y' ELSE 'N' END )
+                                                    AS UPDT_YN               <!-- 수정여부                 -->
+                      , A1.TITLE_NAME                                        <!-- V(200)  N 제목명         -->
+                      , A1.INQR_COUNT                                        <!-- N(10,0) N 조회수         -->
+                      , TO_CHAR(A1.RGST_DTM, 'YYYYMMDD')
+                                                    AS RGST_DTM              <!-- DATE    N 등록일시       -->
+                      , A1.RGST_USER_ID                                      <!-- V(20)   N 등록사용자ID   -->
+                      , A1.SEQ                      AS ROW_ID                <!-- 행ID                     -->
+                      , B1.SEQ                      AS ANSWR_EXIST           <!-- 답변존재여부             -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.RGST_DTM DESC)
+                                                    AS ROW_NO                <!-- 행번호 -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.RGST_DTM ASC)
+                                                    AS BLTN_NO               <!-- 게시물번호 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_QNA                      A1                       <!-- [Q&A] -->
+                LEFT OUTER JOIN
+                        TB_QNA_ANSWR                B1
+                        ON A1.SEQ                   =  B1.SEQ
+                <where>
+                <if test='null != titleName and "" != titleName'>
+                AND LOWER(A1.TITLE_NAME)            LIKE '%' || LOWER(#{titleName}) || '%'  <!-- V(200)  N 제목명 -->
+                </if>
+                </where>
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT
+                A1.NEW_YN                                                    <!-- 신규여부                 -->
+              , A1.UPDT_YN                                                   <!-- 수정여부                 -->
+              , A1.TITLE_NAME                                                <!-- V(200)  N 제목명         -->
+              , A1.INQR_COUNT                                                <!-- N(10,0) N 조회수         -->
+              , A1.RGST_DTM                                                  <!-- DATE    N 등록일시       -->
+              , A1.RGST_USER_ID                                              <!-- V(20)   N 등록사용자ID   -->
+              , A1.ROW_ID                                                    <!-- 행ID                     -->
+              , A1.ANSWR_EXIST                                               <!-- 답변존재여부             -->
+              , A1.ROW_NO                                                    <!-- 행번호 -->
+              , A1.BLTN_NO                                                   <!-- 게시물번호 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 정보 조회 -->
+    <select id="qnaOra.selectInfo" resultMap="resultInfo" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaVO">
+        WITH    /* sqlMapId(qnaOra.selectInfo) */
+                CB_PRE_NEXT
+                AS
+                (
+                SELECT  LAG(A1.TITLE_NAME, 1)  OVER(ORDER BY A1.RGST_DTM DESC)
+                                                    AS PRE_INFO              <!-- 이전 글 정보             -->
+                      , LEAD(A1.TITLE_NAME, 1) OVER(ORDER BY A1.RGST_DTM DESC)
+                                                    AS NEXT_INFO             <!-- 다음 글 정보             -->
+                      , LAG(A1.SEQ, 1) OVER(ORDER BY A1.RGST_DTM DESC)
+                                                    AS PRE_ROW_ID            <!-- 이전 글 행ID             -->
+                      , LEAD(A1.SEQ, 1) OVER(ORDER BY A1.RGST_DTM DESC)
+                                                    AS NEXT_ROW_ID           <!-- 다음 글 행ID             -->
+                      , A1.SEQ                      AS SEQ                   <!-- 행ID                     -->
+                FROM    TB_QNA                      A1                       <!-- [Q&A] -->
+                )
+        SELECT  A1.TITLE_NAME                                                <!-- V(200)  N 제목명         -->
+              , A1.CTTS                                                      <!-- CLOB    N 내용           -->
+              , B1.ANSWR_CTTS                                                <!-- CLOB    N 답변내용       -->
+              , A1.INQR_COUNT                                                <!-- N(10,0) N 조회수         -->
+              , B1.SEQ                       AS ANSWR_EXIST                  <!-- 답변존재여부             -->
+              , C1.PRE_INFO                                                  <!-- 이전 글 정보             -->
+              , C1.NEXT_INFO                                                 <!-- 다음 글 정보             -->
+              , C1.PRE_ROW_ID                                                <!-- 이전 글 행ID             -->
+              , C1.NEXT_ROW_ID                                               <!-- 다음 글 행ID             -->
+              , TO_CHAR(A1.RGST_DTM, 'YYYYMMDD')
+                                             AS RGST_DTM                     <!-- DATE    N 등록일시       -->
+              , TO_CHAR(A1.UPDT_DTM, 'YYYYMMDD')
+                                             AS UPDT_DTM                     <!-- DATE    Y 수정일시       -->
+        FROM    TB_QNA                       A1                              <!-- [Q&A] -->
+        LEFT OUTER JOIN
+                TB_QNA_ANSWR                 B1                              <!-- [Q&A답변] -->
+                ON A1.SEQ                    = B1.SEQ                        <!-- N(10,0) N 일련번호       -->
+        INNER JOIN
+                CB_PRE_NEXT                  C1
+                ON A1.SEQ                    = C1.SEQ                        <!-- N(10,0) N 일련번호       -->
+        WHERE   A1.SEQ                       =  #{rowId}                     <!-- N(10,0) N 일련번호       -->
+    </select>
+
+    <!-- 편집가능여부 조회 -->
+    <select id="qnaOra.selectEditPsbleYn" resultType="String" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaVO">
+        SELECT  /* sqlMapId(qnaOra.selectEditPsbleYn) */
+                'Y'
+        FROM    DUAL
+        WHERE   EXISTS (
+                       SELECT  <!-- 관리자인지 확인한다. -->
+                               1
+                       FROM    TB_USER                                       <!-- [사용자] -->
+                       WHERE   USER_ID       =  #{loginUserId}               <!-- V(100)  N 사용자ID     -->
+                       AND     USE_YN        =  'Y'                          <!-- C(1)    N 사용여부     --><!-- 여 -->
+                       AND     ADMIN_YN      =  'Y'                          <!-- C(1)    N 관리자여부   --><!-- 여 -->
+                       UNION ALL
+                       SELECT  <!-- 등록자인지 확인한다. -->
+                               1
+                       FROM    TB_QNA                                        <!-- [Q&A] -->
+                       WHERE   SEQ           =  #{rowId}                     <!-- N(10,0) N 일련번호     -->
+                       AND     RGST_USER_ID  =  #{loginUserId}               <!-- V(100)  N 사용자ID     -->
+                       )
+    </select>
+
+    <!-- 등록 -->
+    <insert id="qnaOra.insertInfo" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaVO">
+        INSERT INTO TB_QNA                                                   <!-- [Q&A] -->
+        (       /* sqlMapId(qnaOra.insertInfo) */
+                SEQ                                                          <!-- N(10,0) N 일련번호       -->
+              , TITLE_NAME                                                   <!-- V(200)  N 제목명         -->
+              , CTTS                                                         <!-- CLOB    N 내용           -->
+              , INQR_COUNT                                                   <!-- N(10,0) N 조회수         -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시       -->
+              , RGST_USER_ID                                                 <!-- V(100)  N 등록사용자ID   -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                                                 <!-- V(100)  Y 수정사용자ID   -->
+        )
+        SELECT  COALESCE(MAX(SEQ), 0) + 1                                    <!-- N(10,0) N 일련번호       -->
+              , #{titleName}                                                 <!-- V(200)  N 제목명         -->
+              , #{ctts:CLOB}                                                 <!-- CLOB    N 내용           -->
+              , 0                                                            <!-- N(10,0) N 조회수         -->
+              , SYSDATE                                                      <!-- DATE    N 등록일시       -->
+              , #{rgstUserId}                                                <!-- V(100)  N 등록사용자ID   -->
+              , NULL                                                         <!-- DATE    Y 수정일시       -->
+              , NULL                                                         <!-- V(100)  Y 수정사용자ID   -->
+        FROM    TB_QNA                                                       <!-- [Q&A] -->
+    </insert>
+
+    <!-- 수정 -->
+    <update id="qnaOra.updateInfo" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaVO">
+        UPDATE  TB_QNA                                                       <!-- [Q&A] -->
+        SET     /* sqlMapId(qnaOra.updateInfo) */
+                TITLE_NAME                   =  #{titleName}                 <!-- V(200)  N 제목명         -->
+              , CTTS                         =  #{ctts:CLOB}                 <!-- CLOB    N 게시물내용     -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(100)  Y 수정사용자ID   -->
+        WHERE   SEQ                          =  #{rowId}                     <!-- N(10,0) N 일련번호       -->
+    </update>
+
+    <!-- 조회수 수정 -->
+    <update id="qnaOra.updateInqrCountInfo" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaVO">
+        UPDATE  TB_QNA                                                       <!-- [Q&A] -->
+        SET     /* sqlMapId(qnaOra.updateInqrCountInfo) */
+                INQR_COUNT                   =  INQR_COUNT + 1               <!-- N(10,0) N 조회수         -->
+        WHERE   SEQ                          =  #{rowId}                     <!-- N(10,0) N 일련번호       -->
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="qnaOra.deleteInfo" parameterType="com.ecosian.epfse.system.qna.dao.vo.QnaVO">
+        DELETE  /* sqlMapId(qnaOra.deleteInfo) */
+        FROM    TB_QNA                                                       <!-- [Q&A] -->
+        WHERE   SEQ                          =  #{rowId}                     <!-- N(10,0) N 일련번호 -->
+    </delete>
+</mapper>

@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="stdtrmOra">
+    <resultMap type="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO" id="result">
+        <result property="krnName"       column="KRN_NAME"        />
+        <result property="engNfrmltName" column="ENG_NFRMLT_NAME" />
+        <result property="engName"       column="ENG_NAME"        />
+        <result property="pjtName"       column="PJT_NAME"        />
+        <result property="rowId"         column="ROW_ID"          />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO" id="resultInqr">
+        <result property="krnName"       column="KRN_NAME"        />
+        <result property="engNfrmltName" column="ENG_NFRMLT_NAME" />
+        <result property="rowId"         column="ROW_ID"          />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO" id="resultSave">
+        <result property="krnName"       column="KRN_NAME"        />
+        <result property="engNfrmltName" column="ENG_NFRMLT_NAME" />
+        <result property="engName"       column="ENG_NAME"        />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="stdtrmOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        WITH    /* sqlMapId(stdtrmOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  A1.KRN_NAME                                          <!-- V(200)  N 한글명     -->
+                      , A1.ENG_NFRMLT_NAME                                   <!-- V(200)  N 영문약식명 -->
+                      , A1.ENG_NAME                                          <!-- V(200)  Y 영문명     -->
+                      , A1.PJT_NAME                                          <!-- V(200)  Y 프로젝트명 -->
+                      , A1.SEQ                      AS ROW_ID                <!-- N(10,0) N 일련번호   -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.KRN_NAME ASC)
+                                                    AS ROW_NO
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    ESCOM2_DEV.TB_STDTRM        A1                              <!-- [표준용어] -->
+                <where>
+                <if test='null != clsfyName and "" != clsfyName'>
+                    <if test='"1".equals(clsfyId)'>
+                AND     A1.KRN_NAME                 LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  N 한글명     -->
+                    </if>
+                    <if test='"2".equals(clsfyId)'>
+                AND     A1.ENG_NFRMLT_NAME          LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  N 영문약식명 -->
+                    </if>
+                    <if test='"3".equals(clsfyId)'>
+                AND     A1.ENG_NAME                 LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  Y 영문명     -->
+                    </if>
+                </if>
+                <if test='null != pjtName and "" != pjtName'>
+                AND     A1.PJT_NAME                 LIKE '%' || UPPER(#{pjtName}) || '%' <!-- V(200)  Y 프로젝트명 -->
+                </if>
+                </where>
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      , A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT  A1.*
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 영문조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="stdtrmOra.selectEngInqrList" resultMap="resultInqr" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        WITH    /* SQLMapID(stdtrmOra.selectEngInqrList) */
+                CB_INPUT_INFO                                                <!-- [입력정보] -->
+                AS
+                (
+                SELECT  <!-- 입력값의 길이를 조회한다. -->
+                        LOWER(#{clsfyName})         AS INPUT_VALUE           <!-- 입력값   -->
+                      , LENGTH(#{clsfyName})        AS INPUT_LNGTH           <!-- 입력길이 -->
+                FROM    DUAL
+                )
+              , CB_POSTN_LIST                                                <!-- [위치목록] -->
+                ( POSTN )
+                AS
+                (
+                SELECT  <!-- 1 ~ (입력값의 길이) 사이의 레코드를 생성한다. -->
+                        1                           AS POSTN
+                FROM    DUAL
+                UNION ALL
+                SELECT  B1.POSTN + 1
+                FROM    CB_INPUT_INFO               A1                       <!-- [입력정보] -->
+                INNER JOIN
+                        CB_POSTN_LIST               B1                       <!-- [위치목록] -->
+                        ON  B1.POSTN        <![CDATA[<  A1.INPUT_LNGTH]]>
+                )
+              , CB_POSTN_LNGTH                                               <!-- [위치길이] -->
+                AS
+                (
+                SELECT  <!-- 문자열을 자르는데 사용할 위치 및 길이 값을 생성한다. -->
+                        A1.POSTN
+                      , B1.POSTN                    AS LNGTH
+                FROM    CB_POSTN_LIST               A1                       <!-- [위치목록] -->
+                CROSS JOIN
+                        CB_POSTN_LIST               B1                       <!-- [위치목록] -->
+                WHERE   ( A1.POSTN + B1.POSTN ) <![CDATA[<=]]>
+                                                (
+                                                SELECT  INPUT_LNGTH + 1
+                                                FROM    CB_INPUT_INFO        <!-- [입력정보] -->
+                                                )
+                )
+              , CB_SPLIT_LIST                                                <!-- [분할목록] -->
+                AS
+                (
+                SELECT  <!-- 입력값을 분할 생성한다. -->
+                        SUBSTR(A1.INPUT_VALUE, B1.POSTN, B1.LNGTH)
+                                                    AS SPLIT_VALUE           <!-- 분할값 -->
+                FROM    CB_INPUT_INFO               A1                       <!-- [입력정보] -->
+                CROSS JOIN
+                        CB_POSTN_LNGTH              B1                       <!-- [위치길이] -->
+                )
+              , CB_STSDTRM_LIST                                              <!-- [표준용어목록] -->
+                AS
+                (
+                SELECT  <!-- 입력값과 동일한 표준용어관리정보를 가져온다. -->
+                        B1.KRN_NAME                                          <!-- V(200)  N 한글명       -->
+                      , B1.ENG_NFRMLT_NAME                                   <!-- V(200)  N 영문약식명   -->
+                FROM    CB_INPUT_INFO               A1                       <!-- [입력정보] -->
+                INNER JOIN
+                        ESCOM2_DEV.TB_STDTRM        B1                       <!-- [표준용어] -->
+                        ON  B1.KRN_NAME             =  A1.INPUT_VALUE        <!-- V(200)  N 한글명       -->
+                UNION
+                SELECT  <!-- 입력값과 관계있는 표준용어관리목록을 가져온다. -->
+                        B1.KRN_NAME
+                      , B1.ENG_NFRMLT_NAME                                   <!-- V(200)  N 영문약식명   -->
+                FROM    CB_SPLIT_LIST               A1                       <!-- [입력정보] -->
+                INNER JOIN
+                        ESCOM2_DEV.TB_STDTRM        B1                       <!-- [표준용어] -->
+                        ON  B1.KRN_NAME             =  A1.SPLIT_VALUE        <!-- V(200)  N 한글명       -->
+                )
+              , CB_JOIN_LIST                                                 <!-- [조합목록] -->
+                ( STSDTRM_CNT, KRN_STSDTRM_JOIN, KRN_STSDTRM_JOIN2, ENG_NFRMLT_JOIN )
+                AS
+                (
+                SELECT  <!-- 용어를 서로 조합하여 새로운 용어를 생성한다. -->
+                        1                           AS STSDTRM_CNT           <!-- 표준용어건수      -->
+                      , KRN_NAME                    AS KRN_STSDTRM_JOIN      <!-- 한글표준용어조합  -->
+                      , KRN_NAME                    AS KRN_STSDTRM_JOIN2     <!-- 한글표준용어조합2 -->
+                      , ENG_NFRMLT_NAME             AS ENG_NFRMLT_JOIN       <!-- 영문약식조합      -->
+                FROM    CB_STSDTRM_LIST
+                UNION ALL
+                SELECT  B1.STSDTRM_CNT + 1
+                      , B1.KRN_STSDTRM_JOIN         || A1.KRN_NAME
+                      , B1.KRN_STSDTRM_JOIN2 || '_' || A1.KRN_NAME
+                      , B1.ENG_NFRMLT_JOIN   || '_' || A1.ENG_NFRMLT_NAME
+                FROM    CB_STSDTRM_LIST             A1                       <!-- [표준용어목록] -->
+                INNER JOIN
+                        CB_JOIN_LIST                B1                       <!-- [조합목록] -->
+                        ON  B1.STSDTRM_CNT      <![CDATA[<  4]]>
+                )
+        SELECT
+                A2.KRN_STSDTRM_JOIN || ' | ' || A2.KRN_STSDTRM_JOIN2
+                                             AS KRN_NAME
+              , A2.ENG_NFRMLT_JOIN           AS ENG_NFRMLT_NAME
+              , ROWNUM                       AS ROW_ID
+        FROM    (
+                SELECT  DISTINCT
+                        B1.KRN_STSDTRM_JOIN
+                      , B1.KRN_STSDTRM_JOIN2
+                      , B1.ENG_NFRMLT_JOIN
+                      , B1.STSDTRM_CNT
+                FROM    CB_INPUT_INFO               A1                       <!-- [입력정보] -->
+                INNER JOIN
+                        CB_JOIN_LIST                B1                       <!-- [조합목록] -->
+                        ON  B1.KRN_STSDTRM_JOIN =  A1.INPUT_VALUE
+                )                                   A2
+        UNION ALL
+        SELECT  A2.INPUT_VALUE               AS KRN_NAME
+              , NULL
+
+              , ROWNUM                       AS ROW_ID
+        FROM    CB_INPUT_INFO                A2
+        WHERE   NOT EXISTS  (
+                            SELECT  1
+                            FROM    CB_INPUT_INFO           A1               <!-- [입력정보] -->
+                            INNER JOIN
+                                    CB_JOIN_LIST            B1               <!-- [조합목록] -->
+                                    ON  B1.KRN_STSDTRM_JOIN =  A1.INPUT_VALUE
+                            )
+        ORDER BY
+                KRN_NAME                     ASC
+    </select>
+
+    <!-- 한글조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="stdtrmOra.selectKrnInqrList" resultMap="resultInqr" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        WITH    /* SQLMapID(stdtrmOra.selectKrnInqrList) */
+                CB_INPUT_INFO                                                <!-- [입력정보] -->
+                AS
+                (
+                SELECT  <!-- 입력값의 길이를 조회한다. -->
+                        LOWER(#{clsfyName})         AS INPUT_VALUE           <!-- 입력값 -->
+                      , LENGTH(#{clsfyName})        AS INPUT_LNGTH           <!-- 입력길이 -->
+                FROM    DUAL
+                )
+              , CB_POSTN_LIST                                                <!-- [위치목록] -->
+                ( POSTN )
+                AS
+                (
+                SELECT  <!-- 1 ~ (입력값의 길이) 사이의 레코드를 생성한다. -->
+                        1                           AS POSTN
+                FROM    DUAL
+                UNION ALL
+                SELECT  B1.POSTN + 1
+                FROM    CB_INPUT_INFO               A1                       <!-- [입력정보] -->
+                INNER JOIN
+                        CB_POSTN_LIST               B1                       <!-- [위치목록] -->
+                        ON  B1.POSTN                <![CDATA[<  A1.INPUT_LNGTH]]>
+                )
+              , CB_UNDERBAR_POSTN                                            <!-- [언더바위치] -->
+                AS
+                (
+                SELECT  A1.POSTN
+                FROM    CB_POSTN_LIST               A1                       <!-- [위치목록] -->
+                INNER JOIN
+                        CB_INPUT_INFO               B1                       <!-- [입력정보] -->
+                        ON  SUBSTR(B1.INPUT_VALUE, A1.POSTN, 1)
+                                                    =  '_'
+                )
+              , CB_POSTN_LNGTH                                               <!-- [위치길이] -->
+                AS
+                (
+                SELECT  1                           AS POSTN
+                      , COALESCE((
+                                 SELECT  MIN(A2.POSTN) - 1
+                                 FROM    CB_UNDERBAR_POSTN  A2
+                                 )
+                               , (
+                                 SELECT  A3.INPUT_LNGTH
+                                 FROM    CB_INPUT_INFO      A3
+                                 ))                 AS LNGTH
+                FROM    DUAL
+                UNION ALL
+                SELECT  A1.POSTN + 1
+                      , COALESCE((
+                                 SELECT  MIN(A2.POSTN) - 1
+                                 FROM    CB_UNDERBAR_POSTN  A2
+                                 WHERE   A2.POSTN  <![CDATA[>  A1.POSTN]]>
+                                 )
+                               , (
+                                 SELECT  A3.INPUT_LNGTH
+                                 FROM    CB_INPUT_INFO      A3
+                                 ))  -  A1.POSTN
+                FROM    CB_UNDERBAR_POSTN           A1                       <!-- [언더바위치] -->
+                )
+              , CB_SPLIT_LIST                                                <!-- [분할목록] -->
+                AS
+                (
+                SELECT  <!-- 입력값을 분할 생성한다. -->
+                        ROW_NUMBER() OVER(ORDER BY B1.POSTN ASC)
+                                                    AS ROW_NO                <!-- 행번호 -->
+                      , SUBSTR(A1.INPUT_VALUE, B1.POSTN, B1.LNGTH)
+                                                    AS SPLIT_VALUE           <!-- 분할값 -->
+                FROM    CB_INPUT_INFO               A1                       <!-- [입력정보] -->
+                CROSS JOIN
+                        CB_POSTN_LNGTH              B1                       <!-- [위치길이] -->
+                )
+              , CB_STSDTRM_LIST                                              <!-- [표준용어목록] -->
+                AS
+                (
+                SELECT  <!-- 분할된 입력값과 동일한 표준용어관리정보를 가져온다. -->
+                        A1.ROW_NO
+                      , COALESCE(B1.KRN_NAME, A1.SPLIT_VALUE) AS KRN_NAME    <!-- V(200)  N 한글명       -->
+                      , A1.SPLIT_VALUE
+                FROM    CB_SPLIT_LIST               A1                       <!-- [분할목록] -->
+                LEFT OUTER JOIN
+                        ESCOM2_DEV.TB_STDTRM        B1                       <!-- [표준용어] -->
+                        ON  B1.ENG_NFRMLT_NAME      =  A1.SPLIT_VALUE        <!-- V(200)  N 영문약식명   -->
+                )
+              , CB_JOIN_LIST                                                 <!-- [조합목록] -->
+                ( STSDTRM_CNT, KRN_STSDTRM_JOIN, KRN_STSDTRM_JOIN2, ENG_NFRMLT_JOIN )
+                AS
+                (
+                SELECT  A1.ROW_NO
+                      , A1.KRN_NAME
+                      , A1.KRN_NAME
+                      , A1.SPLIT_VALUE
+                FROM    CB_STSDTRM_LIST             A1                       <!-- [표준용어목록] -->
+
+                WHERE   A1.ROW_NO                   =  1
+                UNION ALL
+                SELECT  A1.STSDTRM_CNT + 1
+                      , A1.KRN_STSDTRM_JOIN         || B1.KRN_NAME
+                      , A1.KRN_STSDTRM_JOIN2 || '_' || B1.KRN_NAME
+                      , A1.ENG_NFRMLT_JOIN   || '_' || B1.SPLIT_VALUE
+                FROM    CB_JOIN_LIST                A1
+                INNER JOIN
+                        CB_STSDTRM_LIST             B1                       <!-- [표준용어목록] -->
+                        ON  B1.ROW_NO               =  A1.STSDTRM_CNT + 1
+                )
+
+        SELECT  A1.KRN_STSDTRM_JOIN || ' | ' || A1.KRN_STSDTRM_JOIN2
+                                             AS KRN_NAME
+              , A1.ENG_NFRMLT_JOIN           AS ENG_NFRMLT_NAME
+              , ROWNUM                       AS ROW_ID
+        FROM    CB_JOIN_LIST                 A1                              <!-- [조합목록] -->
+        WHERE   A1.STSDTRM_CNT               = (
+                                               SELECT  MAX(STSDTRM_CNT)
+                                               FROM    CB_JOIN_LIST          <!-- [조합목록] -->
+                                               )
+    </select>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="stdtrmOra.selectSaveList" resultMap="resultSave">
+        SELECT  /* sqlMapId(stdtrmOra.selectSaveList) */
+                UPPER(A1.KRN_NAME       )    AS KRN_NAME                     <!-- V(200)  N 한글명     -->
+              , UPPER(A1.ENG_NFRMLT_NAME)    AS ENG_NFRMLT_NAME              <!-- V(200)  N 영문약식명 -->
+              , UPPER(A1.ENG_NAME       )    AS ENG_NAME                     <!-- V(200)  Y 영문명     -->
+        FROM    ESCOM2_DEV.TB_STDTRM         A1                              <!-- [표준용어] -->
+        ORDER BY
+                1                            ASC
+    </select>
+
+    <!-- 한글명 중복여부 조회 -->
+    <select id="stdtrmOra.selectKrnNameDupYn" resultType="String" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        SELECT  /* sqlMapId(stdtrmOra.selectKrnNameDupYn) */
+                ( CASE WHEN EXISTS (
+                                   SELECT  1
+                                   FROM    ESCOM2_DEV.TB_STDTRM A1           <!-- [표준용어] -->
+                                   WHERE   1                    =  1
+                                   <if test='null != rowId and "" != rowId'>
+                                   AND     A1.SEQ               != #{rowId}  <!-- N(10,0) N 일련번호   -->
+                                   </if>
+                                   AND     A1.KRN_NAME          =  #{krnName}  <!-- V(200)  N 한글명     -->
+                                   )
+                       THEN 'Y' ELSE 'N'
+                  END
+                )                            AS DUP_YN
+        FROM    DUAL
+    </select>
+
+    <!-- 영문약식명 중복여부 조회 -->
+    <select id="stdtrmOra.selectEngNfrmltNameDupYn" resultType="String" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        SELECT  /* sqlMapId(stdtrmOra.selectEngNfrmltNameDupYn) */
+                ( CASE WHEN EXISTS (
+                                   SELECT  1
+                                   FROM    ESCOM2_DEV.TB_STDTRM A1           <!-- [표준용어] -->
+                                   WHERE   1                    =  1
+                                   <if test='null != rowId and "" != rowId'>
+                                   AND     A1.SEQ               != #{rowId}  <!-- N(10,0) N 일련번호   -->
+                                   </if>
+                                   AND     A1.ENG_NFRMLT_NAME   =  #{engNfrmltName}  <!-- V(200)  N 한글명     -->
+                                   )
+                       THEN 'Y' ELSE 'N'
+                  END
+                )                            AS DUP_YN
+        FROM    DUAL
+    </select>
+
+    <!-- 행ID 조회 -->
+    <select id="stdtrmOra.selectRowId" resultType="String" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        SELECT  /* sqlMapId(stdtrmOra.selectRowId) */
+                MAX(A1.SEQ)                  AS ROW_ID                       <!-- N(10,0) N 일련번호   -->
+        FROM    ESCOM2_DEV.TB_STDTRM         A1                              <!-- [표준용어] -->
+    </select>
+
+    <!-- 등록 -->
+    <insert id="stdtrmOra.insertInfo" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        INSERT  INTO  ESCOM2_DEV.TB_STDTRM                                   <!-- [표준용어] -->
+        (       /* sqlMapId(stdtrmOra.insertInfo) */
+                SEQ                                                          <!-- N(10,0) N 일련번호   -->
+              , KRN_NAME                                                     <!-- V(200)  N 한글명     -->
+              , ENG_NFRMLT_NAME                                              <!-- V(200)  N 영문약식명 -->
+              , ENG_NAME                                                     <!-- V(200)  Y 영문명     -->
+              , PJT_NAME                                                     <!-- V(200)  Y 프로젝트명 -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시   -->
+              , RGST_USER_ID                                                 <!-- V(100)  N 등록사용자ID -->
+        )
+        SELECT  COALESCE(MAX(A1.SEQ), 0) + 1                                 <!-- N(10,0) N 일련번호   -->
+              , #{krnName}                                                   <!-- V(200)  N 한글명     -->
+              , #{engNfrmltName}                                             <!-- V(200)  N 영문약식명 -->
+              , #{engName}                                                   <!-- V(200)  Y 영문명     -->
+              , UPPER(#{pjtName})                                            <!-- V(200)  Y 프로젝트명 -->
+              , SYSDATE                                                      <!-- DATE    N 등록일시   -->
+              , #{comParamLoginUserId}                                       <!-- V(100)  N 등록사용자ID -->
+        FROM    ESCOM2_DEV.TB_STDTRM         A1                              <!-- [표준용어] -->
+    </insert>
+
+    <!-- 수정 -->
+    <update id="stdtrmOra.updateInfo" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        UPDATE  ESCOM2_DEV.TB_STDTRM                                         <!-- [표준용어] -->
+        SET     /* sqlMapId(stdtrmOra.updateInfo) */
+                KRN_NAME                     =  #{krnName}                   <!-- V(200)  N 한글명     -->
+              , ENG_NFRMLT_NAME              =  #{engNfrmltName}             <!-- V(200)  N 영문약식명 -->
+              , ENG_NAME                     =  #{engName}                   <!-- V(200)  Y 영문명     -->
+              , PJT_NAME                     =  UPPER(#{pjtName})            <!-- V(200)  Y 프로젝트명 -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    N 수정일시   -->
+              , UPDT_USER_ID                 =  #{comParamLoginUserId}       <!-- V(100)  Y 수정사용자ID -->
+        WHERE   SEQ                          =  #{rowId}                     <!-- N(10,0) N 일련번호   -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="stdtrmOra.deleteList" parameterType="com.ecosian.epfse.develop.stdtrm.dao.vo.StdtrmVO">
+        DELETE  /* sqlMapId(stdtrmOra.deleteList) */
+        FROM    ESCOM2_DEV.TB_STDTRM                                         <!-- [표준용어] -->
+        WHERE   SEQ                          IN (${rowId})                   <!-- N(10,0) N 일련번호   -->
+    </delete>
+</mapper>

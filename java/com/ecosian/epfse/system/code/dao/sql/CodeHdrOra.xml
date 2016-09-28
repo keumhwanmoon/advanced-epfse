@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="codeHdrOra">
+    <resultMap type="com.ecosian.epfse.system.code.dao.vo.CodeHdrVO" id="result">
+        <result property="codeHdrId"    column="CODE_HDR_ID"    />
+        <result property="codeHdrName"  column="CODE_HDR_NAME"  />
+        <result property="intrrHdrName" column="INTRR_HDR_NAME" />
+        <result property="rowId" column="ROW_ID" />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="codeHdrOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeHdrVO">
+        SELECT  /* sqlMapId(codeHdrOra.selectList) */
+                A1.CODE_HDR_ID                                               <!-- V(20)   N 코드헤더ID   -->
+              , A1.CODE_HDR_NAME                                             <!-- V(200)  N 코드헤더명   -->
+              , A1.INTRR_HDR_NAME                                            <!-- V(200)  N 내부헤더명   -->
+              , A1.CODE_HDR_ID               AS ROW_ID                       <!-- 행ID -->
+                <!-- 행번호 컬럼을 추가한다. START -->
+              , ROW_NUMBER() OVER(ORDER BY A1.CODE_HDR_ID ASC)
+                                             AS ROW_NO                       <!-- 행번호 -->
+                <!-- 행번호 컬럼을 추가한다. END   -->
+        FROM    TB_CODE_HDR                  A1                              <!-- [코드헤더] -->
+        <where>
+        <if test='null != clsfyName and "" != clsfyName'>
+            <if test='"11".equals(clsfyId)'>
+        AND     A1.CODE_HDR_ID               LIKE '%' || #{clsfyName} || '%'  <!-- V(20)   N 코드헤더ID   -->
+            </if>
+            <if test='"12".equals(clsfyId)'>
+        AND     A1.CODE_HDR_NAME             LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  N 코드헤더명   -->
+            </if>
+            <if test='"21".equals(clsfyId)'>
+        AND     EXISTS (
+                       SELECT  1
+                       FROM    TB_CODE          BA                           <!-- [코드] -->
+                       WHERE   BA.CODE_HDR_ID   =  A1.CODE_HDR_ID            <!-- V(20)   N 코드헤더ID     -->
+                       AND     BA.USERDEF_CODE  LIKE  '%' || #{clsfyName} || '%'  <!-- V(20)   N 사용자정의코드 -->
+                       )
+            </if>
+            <if test='"22".equals(clsfyId)'>
+        AND     EXISTS (
+                       SELECT  1
+                       FROM    TB_CODE                         BA            <!-- [코드] -->
+                       INNER JOIN
+                               TB_CODE_NAME                    CA            <!-- [코드명] -->
+                               ON  1                           =  1
+                               <if test='null != langCode and "" != langCode'>
+                               AND CA.LANG_CODE                =  #{langCode}                 <!-- V(20)   N 언어코드       -->
+                               </if>
+                               AND CA.CODE_HDR_ID              =  BA.CODE_HDR_ID              <!-- V(20)   N 코드헤더ID     -->
+                               AND CA.USERDEF_CODE             =  BA.USERDEF_CODE             <!-- V(20)   N 사용자정의코드 -->
+                               AND CA.CODE_NAME              LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  N 코드명         -->
+                       WHERE   BA.CODE_HDR_ID                  =  A1.CODE_HDR_ID              <!-- V(20)   N 코드헤더ID     -->
+                       )
+            </if>
+        </if>
+        <if test="null != intrrHdrName and '' != intrrHdrName">
+        AND     A1.INTRR_HDR_NAME           LIKE '%' || #{intrrHdrName} || '%'
+        </if>
+        </where>
+        ORDER BY
+                A1.CODE_HDR_ID              ASC
+    </select>
+
+    <!-- 중복여부 조회 -->
+    <!-- 설명 : 코드 클래스 저장시 사용한다. -->
+    <select id="codeHdrOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeHdrVO">
+        SELECT  /* sqlMapId(codeHdrOra.selectDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_CODE_HDR                                                  <!-- [코드헤더] -->
+        WHERE   CODE_HDR_ID                  =  #{codeHdrId}                 <!-- V(20)   N 코드헤더ID   -->
+        <if test='null != rowId and "" != rowId'>
+        AND     CODE_HDR_ID                  != #{rowId}                     <!-- V(20)   N 코드헤더ID   -->
+        </if>
+    </select>
+
+    <!-- 등록 -->
+    <insert id="codeHdrOra.insertInfo" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeHdrVO">
+        INSERT INTO TB_CODE_HDR                                              <!-- [코드헤더] -->
+        (       /* sqlMapId(codeHdrOra.insertInfo) */
+                CODE_HDR_ID                                                  <!-- V(20)   N 코드헤더ID   -->
+              , CODE_HDR_NAME                                                <!-- V(200)  N 코드헤더명   -->
+              , INTRR_HDR_NAME                                               <!-- V(200)  N 내부헤더명   -->
+        )
+        VALUES
+        (
+                #{codeHdrId}                                                 <!-- V(20)   N 코드헤더ID   -->
+              , #{codeHdrName}                                               <!-- V(200)  N 코드헤더명   -->
+              , #{intrrHdrName}                                              <!-- V(200)  N 내부헤더명   -->
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="codeHdrOra.updateInfo" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeHdrVO">
+        UPDATE  TB_CODE_HDR                                                  <!-- [코드헤더] -->
+        SET     /* sqlMapId(codeHdrOra.updateInfo) */
+                CODE_HDR_ID                  =  #{codeHdrId}                 <!-- V(20)   N 코드헤더ID   -->
+              , CODE_HDR_NAME                =  #{codeHdrName}               <!-- V(200)  N 코드헤더명   -->
+              , INTRR_HDR_NAME               =  #{intrrHdrName}              <!-- V(200)  N 내부헤더명   -->
+        WHERE   CODE_HDR_ID                  =  #{rowId}                     <!-- V(20)   N 코드헤더ID   -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="codeHdrOra.deleteList" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeHdrVO">
+        DELETE  /* sqlMapId(codeHdrOra.deleteList) */
+        FROM    TB_CODE_HDR                                                  <!-- [코드헤더] -->
+        WHERE   CODE_HDR_ID                  IN (${rowId})                   <!-- V(20)   N 코드헤더ID   -->
+    </delete>
+</mapper>

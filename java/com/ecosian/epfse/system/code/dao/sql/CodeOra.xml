@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="codeOra">
+    <!-- 중복여부 조회 -->
+    <select id="codeOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeVO">
+        SELECT  /* sqlMapId(codeOra.selectDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_CODE                                                      <!-- [코드] -->
+        WHERE   CODE_HDR_ID                  =  #{codeHdrId}                 <!-- V(20)   N 코드헤더ID     -->
+        AND     USERDEF_CODE                 =  #{userdefCode}               <!-- V(20)   N 사용자정의코드 -->
+        <if test='null != rowId and "" != rowId'>
+        AND     USERDEF_CODE                 != #{rowId}                     <!-- V(20)   N 사용자정의코드 -->
+        </if>
+    </select>
+
+    <!-- 존재여부 조회 -->
+    <!-- 설명 : 코드헤더 클래스 삭제시 사용한다. -->
+    <select id="codeOra.selectExistYn" resultType="String" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeVO">
+        SELECT  /* sqlMapId(codeOra.selectExistYn) */
+                'Y'                          AS EXIST_YN                     <!-- 존재여부 --><!-- 여 -->
+        FROM    TB_CODE                                                      <!-- [코드] -->
+        WHERE   CODE_HDR_ID                  IN (${rowId})                   <!-- V(20)   N 코드헤더ID     -->
+        AND     ROWNUM                       =  1
+    </select>
+
+    <!-- 등록 -->
+    <insert id="codeOra.insertInfo" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeVO">
+        INSERT INTO TB_CODE                                                  <!-- [코드] -->
+        (       /* sqlMapId(codeOra.insertInfo) */
+                CODE_HDR_ID                                                  <!-- V(20)   N 코드헤더ID     -->
+              , USERDEF_CODE                                                 <!-- V(20)   N 사용자정의코드 -->
+              , INTRR_NAME                                                   <!-- V(200)  Y 내부명         -->
+        )
+        VALUES
+        (
+                #{codeHdrId}                                                 <!-- V(20)   N 코드헤더ID     -->
+              , #{userdefCode}                                               <!-- V(20)   N 사용자정의코드 -->
+              , #{intrrName}                                                 <!-- V(200)  Y 내부명         -->
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="codeOra.updateInfo" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeVO">
+        UPDATE  TB_CODE                                                      <!-- [코드] -->
+        SET     /* sqlMapId(codeOra.updateInfo) */
+                USERDEF_CODE                 =  #{userdefCode}               <!-- V(20)   N 사용자정의코드 -->
+              , INTRR_NAME                   =  #{intrrName}                 <!-- V(200)  Y 내부명         -->
+        WHERE   CODE_HDR_ID                  =  #{codeHdrId}                 <!-- V(20)   N 코드헤더ID     -->
+        AND     USERDEF_CODE                 =  #{rowId}                     <!-- V(20)   N 사용자정의코드 -->
+    </update>
+
+    <!-- 코드헤더ID 목록 수정 -->
+    <!-- 설명 : 코드헤더 클래스 코드헤더ID 변경시 사용한다. -->
+    <update id="codeOra.updateCodeHdrIdList" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeVO">
+        UPDATE  TB_CODE                                                      <!-- [코드] -->
+        SET     /* sqlMapId(codeOra.updateCodeHdrIdList) */
+                CODE_HDR_ID                  =  #{codeHdrId}                 <!-- V(20)   N 코드헤더ID     -->
+        WHERE   CODE_HDR_ID                  =  #{rowId}                     <!-- V(20)   N 코드헤더ID     -->
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="codeOra.deleteInfo" parameterType="com.ecosian.epfse.system.code.dao.vo.CodeVO">
+        DELETE  /* sqlMapId(codeOra.deleteInfo) */
+        FROM    TB_CODE                      A1                              <!-- [코드] -->
+        WHERE   A1.CODE_HDR_ID               =  #{codeHdrId}                 <!-- V(20)   N 코드헤더ID     -->
+        AND     A1.USERDEF_CODE              =  #{rowId}                     <!-- V(20)   N 사용자정의코드 -->
+        AND     NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_CODE_NAME     BA                       <!-- [코드명] -->
+                           WHERE   BA.LANG_CODE     =  #{langCode}           <!-- V(20)   N 언어코드       -->
+                           AND     BA.CODE_HDR_ID   =  A1.CODE_HDR_ID        <!-- V(20)   N 코드헤더ID     -->
+                           AND     BA.USERDEF_CODE  =  A1.USERDEF_CODE       <!-- V(20)   N 사용자정의코드 -->
+                           )
+    </delete>
+</mapper>

@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="bltnOra">
+    <resultMap type="com.ecosian.epfse.system.bltn.dao.vo.BltnVO" id="result">
+        <result property="newYn"        column="NEW_YN"         />
+        <result property="updtYn"       column="UPDT_YN"        />
+        <result property="titleName"    column="TITLE_NAME"     />
+        <result property="inqrCount"    column="INQR_COUNT"     />
+        <result property="rgstDtm"      column="RGST_DTM"       />
+        <result property="rgstUserName" column="RGST_USER_NAME" />
+        <result property="prntsBltnNo"  column="PRNTS_BLTN_NO"  />
+        <result property="rowId"        column="ROW_ID"         />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+        <result property="rowNo2"  column="ROW_NO2"  />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.system.bltn.dao.vo.BltnVO" id="resultInfo">
+        <result property="titleName"   column="TITLE_NAME"    />
+        <result property="titleName2"  column="TITLE_NAME2"   />
+        <result property="bltnCtts"    column="BLTN_CTTS"     />
+        <result property="bltnCtts2"   column="BLTN_CTTS2"    />
+        <result property="inqrCount"   column="INQR_COUNT"    />
+        <result property="rgstDtm"     column="RGST_DTM"      />
+        <result property="updtDtm"     column="UPDT_DTM"      />
+        <result property="rgstUserName" column="RGST_USER_NAME" />
+        <result property="updtUserName" column="UPDT_USER_NAME" />
+        <result property="prntsBltnNo"  column="PRNTS_BLTN_NO"  />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="bltnOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        WITH    /* sqlMapId(bltnOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  ( CASE WHEN TO_CHAR(A1.RGST_DTM, 'YYYYMMDD') BETWEEN TO_CHAR(SYSDATE - (7), 'YYYYMMDD') AND TO_CHAR(SYSDATE, 'YYYYMMDD') THEN 'Y' ELSE 'N' END )
+                                                    AS NEW_YN                <!-- 신규여부                 -->
+                      , ( CASE WHEN TO_CHAR(A1.UPDT_DTM, 'YYYYMMDD') BETWEEN TO_CHAR(SYSDATE - (7), 'YYYYMMDD') AND TO_CHAR(SYSDATE, 'YYYYMMDD') THEN 'Y' ELSE 'N' END )
+                                                    AS UPDT_YN               <!-- 수정여부                 -->
+                      , A1.TITLE_NAME                                        <!-- V(200)  N 제목명         -->
+                      , A1.INQR_COUNT                                        <!-- N(10,0) N 조회수         -->
+                      , TO_CHAR(A1.RGST_DTM, 'YYYYMMDD')
+                                                    AS RGST_DTM              <!-- DATE    N 등록일시       -->
+                      , U1.USER_NAME                AS RGST_USER_NAME        <!-- 등록사용자명             --><!-- V(200)  N 사용자명 -->
+                      , A1.PRNTS_BLTN_NO                                     <!-- N(10,0) Y 부모게시물번호 -->
+                      , B1.ASC_INQR_YN                                       <!-- C(1)    N 오름차순조회여부 -->
+                      , A1.BLTN_NO                  AS ROW_ID                <!-- 행ID                     -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ( CASE WHEN 'Y' = B1.QSTN_BLTBRD_YN
+                                    THEN ( CASE WHEN 'Y' = B1.ASC_INQR_YN
+                                                     THEN ROW_NUMBER() OVER(ORDER BY
+                                                          ( CASE WHEN A1.PRNTS_BLTN_NO IS NULL
+                                                                      THEN LPAD(      A1.BLTN_NO, 10, '0') || '0000000000'
+                                                                 ELSE      LPAD(A1.PRNTS_BLTN_NO, 10, '0') || LPAD(              A1.BLTN_NO, 10, '0') END ) ASC )
+                                                ELSE      ROW_NUMBER() OVER(ORDER BY
+                                                          ( CASE WHEN A1.PRNTS_BLTN_NO IS NULL
+                                                                      THEN LPAD(      A1.BLTN_NO, 10, '0') || '9999999999'
+                                                                 ELSE      LPAD(A1.PRNTS_BLTN_NO, 10, '0') || LPAD(10000000000 - A1.BLTN_NO, 10, '0') END ) DESC) END )
+                               WHEN 'Y' = B1.ASC_INQR_YN    THEN ROW_NUMBER() OVER(ORDER BY A1.BLTN_NO ASC )
+                               ELSE                              ROW_NUMBER() OVER(ORDER BY A1.BLTN_NO DESC) END )
+                                                    AS ROW_NO                <!-- 행번호 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_BLTN                     A1                       <!-- [게시물] -->
+                INNER JOIN
+                        TB_BLTBRD                   B1                       <!-- [게시판] -->
+                        ON  B1.BLTBRD_NO            =  A1.BLTBRD_NO          <!-- N(10,0) N 게시판번호        -->
+                        AND B1.BLTBRD_NO            =  #{bltbrdNo}           <!-- N(10,0) N 게시판번호        -->
+                        AND (
+                            B1.QSTN_BLTBRD_YN       =  'Y'                   <!-- C(1)    N 질문게시판여부    -->
+                            OR  B1.QSTN_BLTBRD_YN  !=  'Y'
+                            AND A1.PRNTS_BLTN_NO    IS NULL                  <!-- N(10,0) Y 부모게시물번호 -->
+                            )
+                LEFT OUTER JOIN
+                        TB_USER                     U1                       <!-- [사용자] -->
+                        ON  U1.USER_ID              =  A1.RGST_USER_ID       <!-- V(100)  N 사용자ID          -->
+                        AND U1.USE_YN               =  'Y'                   <!-- C(1)    N 사용여부          --><!-- 여 -->
+                <where>
+                <if test='null != clsfyName and "" != clsfyName'>
+                    <if test='"11".equals(clsfyId)'>
+                AND     A1.TITLE_NAME               LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  N 제목명         -->
+                    </if>
+                    <if test='"12".equals(clsfyId)'>
+                AND     A1.TITLE_NAME2              LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  Y 제목명2        -->
+                    </if>
+                    <if test='"13".equals(clsfyId)'>
+                AND     A1.BLTN_CTTS2               LIKE '%' || #{clsfyName} || '%'  <!-- CLOB    Y 게시물내용2    -->
+                    </if>
+                    <if test='"21".equals(clsfyId)'>
+                AND     (
+                        A1.TITLE_NAME               LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  N 제목명         -->
+                OR      A1.BLTN_CTTS2               LIKE '%' || #{clsfyName} || '%'  <!-- CLOB    Y 게시물내용2    -->
+                        )
+                    </if>
+                    <if test='"22".equals(clsfyId)'>
+                AND     (
+                        A1.TITLE_NAME               LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  N 제목명         -->
+                OR      A1.TITLE_NAME2              LIKE '%' || #{clsfyName} || '%'  <!-- V(200)  Y 제목명2        -->
+                OR      A1.BLTN_CTTS2               LIKE '%' || #{clsfyName} || '%'  <!-- CLOB    Y 게시물내용2    -->
+                        )
+                    </if>
+                </if>
+                </where>
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT
+                A1.NEW_YN                                                    <!-- 신규여부                 -->
+              , A1.UPDT_YN                                                   <!-- 수정여부                 -->
+              , A1.TITLE_NAME                                                <!-- V(200)  N 제목명         -->
+              , A1.INQR_COUNT                                                <!-- N(10,0) N 조회수         -->
+              , A1.RGST_DTM                                                  <!-- DATE    N 등록일시       -->
+              , A1.RGST_USER_NAME                                            <!-- 등록사용자명             --><!-- V(200)  N 사용자명 -->
+              , A1.PRNTS_BLTN_NO                                             <!-- N(10,0) Y 부모게시물번호 -->
+              , A1.ASC_INQR_YN                                               <!-- C(1)    N 오름차순조회여부 -->
+              , A1.ROW_ID                                                    <!-- 행ID                     -->
+              , A1.ROW_NO                                                    <!-- 행번호 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+              , ( CASE WHEN 'Y' = A1.ASC_INQR_YN THEN ROW_NUMBER() OVER(ORDER BY A1.ROW_NO ASC)
+                       ELSE                           ROW_NUMBER() OVER(ORDER BY A1.ROW_NO DESC) END )
+                                             AS ROW_NO2                      <!-- 행번호2 -->
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND     B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 정보 조회 -->
+    <select id="bltnOra.selectInfo" resultMap="resultInfo" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        SELECT  /* sqlMapId(bltnOra.selectInfo) */
+                A1.TITLE_NAME                                                <!-- V(200)  N 제목명         -->
+              , A1.TITLE_NAME2                                               <!-- V(200)  Y 제목명2        -->
+              , A1.BLTN_CTTS                                                 <!-- CLOB    Y 게시물내용     -->
+              , A1.BLTN_CTTS2                                                <!-- CLOB    Y 게시물내용2    -->
+              , A1.INQR_COUNT                                                <!-- N(10,0) N 조회수         -->
+              , TO_CHAR(A1.RGST_DTM, 'YYYYMMDDHH24MISS')
+                                             AS RGST_DTM                     <!-- DATE    N 등록일시       -->
+              , TO_CHAR(A1.UPDT_DTM, 'YYYYMMDDHH24MISS')
+                                             AS UPDT_DTM                     <!-- DATE    Y 수정일시       -->
+              , U1.USER_NAME                 AS RGST_USER_NAME               <!-- 등록사용자명             --><!-- V(200)  N 사용자명 -->
+              , U2.USER_NAME                 AS UPDT_USER_NAME               <!-- 수정사용자명             -->
+              , A1.PRNTS_BLTN_NO                                             <!-- N(10,0) Y 부모게시물번호 -->
+        FROM    TB_BLTN                      A1                              <!-- [게시물] -->
+        LEFT OUTER JOIN TB_USER              U1                              <!-- [사용자] -->
+                ON  U1.USER_ID               =  A1.RGST_USER_ID              <!-- V(100)  N 사용자ID       -->
+                AND U1.USE_YN                =  'Y'                          <!-- C(1)    N 사용여부       --><!-- 여 -->
+        LEFT OUTER JOIN
+                TB_USER                      U2                              <!-- [사용자] -->
+                ON  U2.USER_ID               =  A1.UPDT_USER_ID              <!-- V(100)  N 사용자ID       -->
+                AND U2.USE_YN                =  'Y'                          <!-- C(1)    N 사용여부       --><!-- 여 -->
+        WHERE   A1.BLTN_NO                   =  #{rowId}                     <!-- N(10,0) N 게시물번호     -->
+        AND     A1.BLTBRD_NO                 =  #{bltbrdNo}                  <!-- N(10,0) N 게시판번호     -->
+    </select>
+
+    <!-- 행ID 조회 -->
+    <select id="bltnOra.selectRowId" resultType="String" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        SELECT  /* sqlMapId(bltnOra.selectRowId) */
+                MAX(BLTN_NO)                                                 <!-- N(10,0) N 게시물번호     -->
+        FROM    TB_BLTN                                                      <!-- [게시물] -->
+    </select>
+
+    <!-- 존재여부 조회 -->
+    <!-- 설명 : 게시판 클래스 저장/삭제시 사용한다. -->
+    <select id="bltnOra.selectExistYn" resultType="String" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        SELECT  /* sqlMapId(bltnOra.selectExistYn) */
+                'Y'
+        FROM    TB_BLTN                                                      <!-- [게시물] -->
+        WHERE   BLTBRD_NO                    IN (${rowId})                   <!-- N(10,0) N 게시판번호       -->
+        AND     ROWNUM                       =  1
+    </select>
+
+    <!-- 편집가능여부 조회 -->
+    <select id="bltnOra.selectEditPsbleYn" resultType="String" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        SELECT  /* sqlMapId(selectEditPsbleYn) */
+                'Y'
+        FROM    DUAL
+        WHERE   EXISTS (
+                       SELECT  <!-- 관리자인지 확인한다. -->
+                               1
+                       FROM    TB_USER                                       <!-- [사용자] -->
+                       WHERE   USER_ID       =  #{loginUserId}               <!-- V(100)  N 사용자ID     -->
+                       AND     USE_YN        =  'Y'                          <!-- C(1)    N 사용여부     --><!-- 여 -->
+                       AND     ADMIN_YN      =  'Y'                          <!-- C(1)    N 관리자여부   --><!-- 여 -->
+                       UNION ALL
+                       SELECT  <!-- 등록자인지 확인한다. -->
+                               1
+                       FROM    TB_BLTN                                       <!-- [게시물] -->
+                       WHERE   BLTN_NO       =  #{rowId}                     <!-- N(10,0) N 게시물번호     -->
+                       AND     RGST_USER_ID  =  #{loginUserId}               <!-- V(100)  N 사용자ID     -->
+                       )
+    </select>
+
+    <!-- 답변존재여부 조회 -->
+    <select id="bltnOra.selectAnswrExistYn" resultType="String" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        SELECT  /* sqlMapId(bltnOra.selectAnswrExistYn) */
+                'Y'
+        FROM    TB_BLTN                                                      <!-- [게시물] -->
+        WHERE   PRNTS_BLTN_NO                =  #{rowId}                     <!-- N(10,0) Y 부모게시물번호 -->
+        AND     ROWNUM                       =  1
+    </select>
+
+    <!-- 등록 -->
+    <insert id="bltnOra.insertInfo" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        INSERT INTO TB_BLTN                                                  <!-- [게시물] -->
+        (       /* sqlMapId(bltnOra.insertInfo) */
+                BLTN_NO                                                      <!-- N(10,0) N 게시물번호     -->
+              , BLTBRD_NO                                                    <!-- N(10,0) N 게시판번호     -->
+              , TITLE_NAME                                                   <!-- V(200)  N 제목명         -->
+              , TITLE_NAME2                                                  <!-- V(200)  Y 제목명2        -->
+              , BLTN_CTTS                                                    <!-- CLOB    Y 게시물내용     -->
+              , BLTN_CTTS2                                                   <!-- CLOB    Y 게시물내용2    -->
+              , INQR_COUNT                                                   <!-- N(10,0) N 조회수         -->
+              , PRNTS_BLTN_NO                                                <!-- N(10,0) Y 부모게시물번호 -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시       -->
+              , RGST_USER_ID                                                 <!-- V(100)  N 등록사용자ID   -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                                                 <!-- V(100)  Y 수정사용자ID   -->
+        )
+        SELECT  COALESCE(MAX(BLTN_NO), 0) + 1                                <!-- N(10,0) N 게시물번호     -->
+              , #{bltbrdNo}                                                  <!-- N(10,0) N 게시판번호     -->
+              , #{titleName}                                                 <!-- V(200)  N 제목명         -->
+              , #{titleName2}                                                <!-- V(200)  Y 제목명2        -->
+              , #{bltnCtts}                                                  <!-- CLOB    Y 게시물내용     -->
+              , #{bltnCtts2}                                                 <!-- CLOB    Y 게시물내용2    -->
+              , 0                                                            <!-- N(10,0) N 조회수         -->
+              , #{prntsBltnNo}                                               <!-- N(10,0) Y 부모게시물번호 -->
+              , SYSDATE                                                      <!-- DATE    N 등록일시       -->
+              , #{rgstUserId}                                                <!-- V(100)  N 등록사용자ID   -->
+              , NULL                                                         <!-- DATE    Y 수정일시       -->
+              , NULL                                                         <!-- V(100)  Y 수정사용자ID   -->
+        FROM    TB_BLTN                                                      <!-- [게시물] -->
+    </insert>
+
+    <!-- 수정 -->
+    <update id="bltnOra.updateInfo" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        UPDATE  TB_BLTN                                                      <!-- [게시물] -->
+        SET     /* sqlMapId(bltnOra.updateInfo) */
+                TITLE_NAME                   =  #{titleName}                 <!-- V(200)  N 제목명         -->
+              , TITLE_NAME2                  =  #{titleName2}                <!-- V(200)  Y 제목명2        -->
+              , BLTN_CTTS                    =  #{bltnCtts}                  <!-- CLOB    Y 게시물내용     -->
+              , BLTN_CTTS2                   =  #{bltnCtts2}                 <!-- CLOB    Y 게시물내용2    -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(100)  Y 수정사용자ID   -->
+        WHERE   BLTN_NO                      =  #{rowId}                     <!-- N(10,0) N 게시물번호     -->
+    </update>
+
+    <!-- 조회수 수정 -->
+    <update id="bltnOra.updateInqrCountInfo" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        UPDATE  TB_BLTN                                                      <!-- [게시물] -->
+        SET     /* sqlMapId(bltnOra.updateInqrCountInfo) */
+                INQR_COUNT                   =  INQR_COUNT + 1               <!-- N(10,0) N 조회수         -->
+        WHERE   BLTN_NO                      =  #{rowId}                     <!-- N(10,0) N 게시물번호     -->
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="bltnOra.deleteInfo" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnVO">
+        DELETE  /* sqlMapId(bltnOra.deleteInfo) */
+        FROM    TB_BLTN                                                      <!-- [게시물] -->
+        WHERE   BLTN_NO                      =  #{rowId}                     <!-- N(10,0) N 게시물번호     -->
+    </delete>
+</mapper>

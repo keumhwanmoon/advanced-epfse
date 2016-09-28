@@ -1,0 +1,548 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="itemOra">
+    <resultMap type="com.ecosian.epfse.develop.item.dao.vo.ItemVO" id="resultAspect">
+        <result property="itemId"   column="ITEM_ID"   />
+        <result property="itemName" column="ITEM_NAME" />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.develop.item.dao.vo.ItemVO" id="result">
+        <result property="langCode"  column="LANG_CODE"  />
+        <result property="pathName"  column="PATH_NAME"  />
+        <result property="itemId"    column="ITEM_ID"    />
+        <result property="itemName"  column="ITEM_NAME"  />
+        <result property="intrrName" column="INTRR_NAME" />
+        <result property="rowId"     column="ROW_ID"     />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+
+    <!-- Ascpect 조회 -->
+    <!-- 설명 : ItemAspect 클래스에서 사용한다. -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="itemOra.selectListAspect" resultMap="resultAspect" parameterType="com.ecosian.epfse.develop.item.dao.vo.ItemVO">
+        WITH    /* sqlMapId(itemOra.selectListAspect) */
+                CB_LANG_CODE                                                 <!-- [언어코드] -->
+                AS
+                (
+                SELECT  COALESCE(B1.USERDEF_CODE, COALESCE(C1.VAR_NAME, 'ko_KR'))
+                                                AS LANG_CODE
+                FROM    DUAL                    A1
+                LEFT OUTER JOIN
+                        TB_CODE                 B1                           <!-- [코드] -->
+                        ON  B1.CODE_HDR_ID      =  #{langCodeHdrId}          <!-- V(20)   N 코드헤더ID     -->
+                        AND B1.USERDEF_CODE     =  #{userLangCode}           <!-- V(200)  N 사용자정의코드 -->
+                LEFT OUTER JOIN TB_SYS_VAR      C1                           <!-- [시스템변수] -->
+                        ON  C1.VAR_ID           =  'dfltLangCode'            <!-- V(20)   N 변수ID --><!-- 기본언어코드 -->
+                )
+              , CB_MENU_NO                                                   <!-- [메뉴번호] -->
+                AS
+                (
+                SELECT  <!-- 메뉴번호를 조회한다. -->
+                        MAX(MENU_NO)            AS MENU_NO                   <!-- N(10,0) N 메뉴번호   -->
+                FROM    TB_MENU                                              <!-- [메뉴] -->
+                WHERE   MENU_ADDR_NAME          =  ( CASE WHEN 'Y' != CLSFY_USE_YN OR #{menuAddrNameClsfyId} IS NULL THEN #{pathName} ELSE #{pathName} || CHR(63) || 'menuAddrNameClsfyId=' || #{menuAddrNameClsfyId} END )
+                                                                             <!-- V(200)  Y 메뉴주소명 -->
+                AND     USE_YN                  =  'Y'                       <!-- C(1)    N 사용여부   --><!-- 여 -->
+                )
+              , CB_AUTH_CODE                                                 <!-- [권한코드] -->
+                AS
+                (
+                SELECT  <!-- 메뉴 기본권한코드를 조회한다. -->
+                        C1.AUTH_CODE                                         <!-- V(20)   N 권한코드 -->
+                FROM    TB_MENU                 C1                           <!-- [메뉴] -->
+                INNER JOIN
+                        CB_MENU_NO              M1                           <!-- [메뉴번호] -->
+                        ON  M1.MENU_NO          =  C1.MENU_NO
+                UNION ALL
+                SELECT  <!-- 익명사용자 권한코드를 조회한다. -->
+                        A1.AUTH_CODE                                         <!-- V(20)   N 권한코드 -->
+                FROM    TB_MENU_AUTH            A1                           <!-- [메뉴권한] -->
+                INNER JOIN
+                        TB_AUTH                 B1                           <!-- [권한] -->
+                        ON  B1.AUTH_ID          =  A1.AUTH_ID                <!-- V(20)   N 권한ID   -->
+                        AND B1.ANONY_YN         =  'Y'                       <!-- C(1)    N 익명여부 --><!-- 여 -->
+                INNER JOIN
+                        CB_MENU_NO              M1                           <!-- [메뉴번호] -->
+                        ON  M1.MENU_NO          =  A1.MENU_NO
+                INNER JOIN
+                        TB_MENU                 C1                           <!-- [메뉴] -->
+                        ON  C1.MENU_NO          =  A1.MENU_NO                <!-- N(10,0) N 메뉴번호 -->
+                        AND C1.USE_YN           =  'Y'                       <!-- C(1)    N 사용여부 --><!-- 여 -->
+                UNION ALL
+                SELECT  <!-- 관리자 권한코드를 조회한다. -->
+                        '7'                     AS AUTH_CODE                 <!-- 쓰기 -->
+                FROM    TB_USER                 U1                           <!-- [사용자] -->
+                WHERE   U1.USER_ID              =  #{userId}                 <!-- V(20)   N 사용자ID   -->
+                AND     U1.USE_YN               =  'Y'                       <!-- C(1)    N 사용여부   -->
+                AND     U1.ADMIN_YN             =  'Y'                       <!-- C(1)    N 관리자여부 -->
+                UNION ALL
+                SELECT  <!-- 로그인사용자 권한코드를 조회한다. -->
+                        A1.AUTH_CODE                                         <!-- V(20)   N 권한코드   -->
+                FROM    TB_MENU_AUTH            A1                           <!-- [메뉴권한] -->
+                INNER JOIN
+                        TB_AUTH                 B1                           <!-- [권한] -->
+                        ON  B1.AUTH_ID          =  A1.AUTH_ID                <!-- V(20)   N 권한ID     -->
+                        AND B1.ANONY_YN         =  'N'                       <!-- C(1)    N 익명여부   --><!-- 여 -->
+                INNER JOIN
+                        CB_MENU_NO              M1                           <!-- [메뉴번호] -->
+                        ON  M1.MENU_NO          =  A1.MENU_NO
+                INNER JOIN
+                        TB_USER_AUTH            D1                           <!-- [사용자권한] -->
+                        ON  D1.AUTH_ID          =  B1.AUTH_ID                <!-- V(20)   N 권한ID     -->
+                        AND D1.USER_ID          =  #{userId}                 <!-- V(20)   N 사용자ID   -->
+                )
+              , CB_TOP_MENU                                                  <!-- [상단메뉴] -->
+                AS
+                (
+                SELECT  A1.MENU_NO
+                      , A1.DISP_ORDER_NO
+                      , ( CASE WHEN EXISTS  (
+                                            SELECT  <!-- 메뉴 기본권한을 확인한다. -->
+                                                    1
+                                            FROM    TB_MENU         AA              <!-- [메뉴] -->
+                                            WHERE   AA.MENU_NO      =  A1.MENU_NO   <!-- N(10,0) N 메뉴번호   -->
+                                            AND     AA.AUTH_CODE    IS NOT NULL     <!-- V(20)   Y 권한코드   -->
+                                            UNION ALL
+                                            SELECT  <!-- 익명사용자 권한을 확인한다. -->
+                                                    1
+                                            FROM    TB_MENU_AUTH    AA              <!-- [메뉴권한] -->
+                                            INNER JOIN TB_AUTH      BA              <!--  [권한] -->
+                                                    ON  BA.AUTH_ID  =  AA.AUTH_ID   <!-- V(20)   N 권한ID   -->
+                                                    AND BA.ANONY_YN =  'Y'          <!-- C(1)    N 익명여부 --><!-- 여 -->
+                                            WHERE   AA.MENU_NO      =  A1.MENU_NO   <!-- N(10,0) N 메뉴번호 -->
+                                            UNION ALL
+                                            SELECT  <!-- 관리자 권한을 확인한다. -->
+                                                    1
+                                            FROM    TB_USER         UA              <!-- [사용자] -->
+                                            WHERE   UA.USER_ID      =  #{userId}    <!-- V(20)   N 사용자ID   -->
+                                            AND     UA.USE_YN       =  'Y'          <!-- C(1)    N 사용여부   -->
+                                            AND     UA.ADMIN_YN     =  'Y'          <!-- C(1)    N 관리자여부 -->
+                                            UNION ALL
+                                            SELECT  <!-- 로그인사용자 권한을 확인한다. -->
+                                                    1
+                                            FROM    TB_MENU_AUTH    AA              <!-- [메뉴권한] -->
+                                            INNER JOIN
+                                                    TB_AUTH         BA              <!-- [권한] -->
+                                                    ON  BA.AUTH_ID  =  AA.AUTH_ID   <!-- V(20)   N 권한ID   -->
+                                                    AND BA.ANONY_YN =  'N'          <!-- C(1)    N 익명여부 --><!-- 여 -->
+                                            INNER JOIN
+                                                    TB_USER_AUTH    CA              <!-- [사용자권한] -->
+                                                    ON  CA.AUTH_ID  =  BA.AUTH_ID   <!-- V(20)   N 권한ID   -->
+                                                    AND CA.USER_ID  =  #{userId}    <!-- V(20)   N 사용자ID -->
+                                            WHERE   AA.MENU_NO      =  A1.MENU_NO   <!-- N(10,0) N 메뉴번호 -->
+                                            ) THEN 'Y' ELSE 'N' END )
+                                                        AS AUTH_YN
+
+                FROM    TB_MENU                 A1                           <!-- [메뉴] -->
+                INNER JOIN
+                        TB_MENU                 A2                           <!-- [메뉴] -->
+                        ON  A2.MENU_NO          =  A1.PRNTS_MENU_NO          <!-- N(10,0) N 메뉴번호     --><!-- N(10,0) N 부모메뉴번호 -->
+                        AND A2.PRNTS_MENU_NO    IS NULL                      <!-- N(10,0) N 부모메뉴번호 -->
+                WHERE   A1.DISP_YN              =  'Y'                       <!-- C(1)    N 표시여부     --><!-- 여 -->
+                AND     A1.USE_YN               =  'Y'                       <!-- C(1)    N 사용여부     --><!-- 여 -->
+                )
+              , CB_PRNTS_MENU_NO ( PRNTS_MENU_NO, DEPTH )                    <!-- [부모메뉴번호] -->
+                AS
+                (
+                SELECT  <!-- 부모메뉴번호를 조회한다. -->
+                        A1.PRNTS_MENU_NO                                     <!-- N(10,0) Y 부모메뉴번호 -->
+                      , 1                       AS DEPTH
+                FROM    TB_MENU                 A1                           <!-- [메뉴] -->
+                INNER JOIN
+                        CB_MENU_NO              M1                           <!-- [메뉴번호] -->
+                        ON  M1.MENU_NO          =  A1.MENU_NO
+                WHERE   A1.PRNTS_MENU_NO        IS NOT NULL
+                AND     A1.USE_YN               =  'Y'                       <!-- C(1)    N 사용여부     --><!-- 여 -->
+                UNION ALL
+                SELECT  A1.PRNTS_MENU_NO                                     <!-- N(10,0) Y 부모메뉴번호 -->
+                      , B1.DEPTH + 1            AS DEPTH
+                FROM    TB_MENU                 A1                           <!-- [메뉴] -->
+                INNER JOIN
+                        CB_PRNTS_MENU_NO        B1                           <!-- [부모메뉴번호] -->
+                        ON  B1.PRNTS_MENU_NO    =  A1.MENU_NO
+                WHERE   A1.PRNTS_MENU_NO        IS NOT NULL                  <!-- N(10,0) Y 부모메뉴번호 -->
+                AND     A1.USE_YN               =  'Y'                       <!-- C(1)    N 사용여부     --><!-- 여 -->
+                )
+              , CB_MENU_NO_PATH                                              <!-- [메뉴번호경로] -->
+                AS
+                (
+                SELECT  <!-- 화면에 메뉴구조를 표시하기 위해 메뉴번호를 조회한다. -->
+                        M1.MENU_NO
+                      , 0                       AS DEPTH
+                FROM    CB_MENU_NO              M1                           <!-- [메뉴번호] -->
+                UNION ALL
+                SELECT  P1.PRNTS_MENU_NO        AS MENU_NO
+                      , P1.DEPTH
+                FROM    CB_PRNTS_MENU_NO        P1                           <!-- [부모메뉴번호] -->
+                )
+              , CB_SUB_MENU                                                  <!-- [서브메뉴] -->
+                AS
+                (
+                SELECT  A1.MENU_NO                                           <!-- N(10,0) N 메뉴번호     -->
+                      , A1.DISP_ORDER_NO                                     <!-- N(10,0) N 표시순서번호 -->
+                      , A1.MENU_ADDR_NAME                                    <!-- V(200)  Y 메뉴주소명   -->
+                      , T1.MENU_NO              AS TOP_MENU_NO               <!-- 상단메뉴번호           -->
+                      , T1.DISP_ORDER_NO        AS TOP_DISP_ORDER_NO         <!-- 상단표시순번호         -->
+                FROM    TB_MENU                 A1                           <!-- [메뉴] -->
+                INNER JOIN
+                        CB_TOP_MENU             T1                           <!-- [상단메뉴] -->
+                        ON  T1.MENU_NO          = A1.PRNTS_MENU_NO
+                WHERE   EXISTS  (
+                                SELECT  <!-- 메뉴 기본권한을 확인한다. -->
+                                        1
+                                FROM    TB_MENU             AM               <!-- [메뉴] -->
+                                WHERE   AM.MENU_NO          =  A1.MENU_NO    <!-- N(10,0) N 메뉴번호   -->
+                                AND     AM.AUTH_CODE        IS NOT NULL      <!-- V(20)   Y 권한코드   -->
+                                UNION ALL
+                                SELECT  <!-- 익명사용자 권한을 확인한다. -->
+                                        1
+                                FROM    TB_MENU_AUTH        AA               <!-- [메뉴권한] -->
+                                INNER JOIN
+                                        TB_AUTH             BA               <!-- [권한] -->
+                                        ON  BA.AUTH_ID      =  AA.AUTH_ID    <!-- V(20)   N 권한ID   -->
+                                        AND BA.ANONY_YN     =  'Y'           <!-- C(1)    N 익명여부 --><!-- 여 -->
+                                WHERE   AA.MENU_NO          =  A1.MENU_NO    <!-- N(10,0) N 메뉴번호 -->
+                                UNION ALL
+                                SELECT  <!-- 관리자 권한을 확인한다. -->
+                                        1
+                                FROM    TB_USER             UA               <!-- [사용자] -->
+                                WHERE   UA.USER_ID          =  #{userId}     <!-- V(20)   N 사용자ID   -->
+                                AND     UA.USE_YN           =  'Y'           <!-- C(1)    N 사용여부   -->
+                                AND     UA.ADMIN_YN         =  'Y'           <!-- C(1)    N 관리자여부 -->
+                                UNION ALL
+                                SELECT  <!-- 로그인사용자 권한을 확인한다. -->
+                                        1
+                                FROM    TB_MENU_AUTH        AA               <!-- [메뉴권한] -->
+                                INNER JOIN
+                                        TB_AUTH             BA               <!-- [권한] -->
+                                        ON  BA.AUTH_ID      =  AA.AUTH_ID    <!-- V(20)   N 권한ID   -->
+                                        AND BA.ANONY_YN     =  'N'           <!-- C(1)    N 익명여부 --><!-- 여 -->
+                                INNER JOIN TB_USER_AUTH     CA               <!-- [사용자권한] -->
+                                        ON  CA.AUTH_ID      =  BA.AUTH_ID    <!-- V(20)   N 권한ID   -->
+                                        AND CA.USER_ID      =  #{userId}     <!-- V(20)   N 사용자ID -->
+                                WHERE   AA.MENU_NO          =  A1.MENU_NO    <!-- N(10,0) N 메뉴번호 -->
+                                )
+                AND     A1.DISP_YN              =  'Y'                       <!-- C(1)   N 표시여부 -->
+                AND     A1.USE_YN               =  'Y'                       <!-- C(1)   N 사용여부 -->
+                )
+              , CB_SUB_MENU2                                                 <!-- [서브메뉴] -->
+                AS
+                (
+                SELECT  S1.MENU_NO              AS SUB_MENU_NO               <!-- 상단메뉴번호           -->
+                      , A1.MENU_ADDR_NAME                                    <!-- V(200)  Y 메뉴주소명   -->
+                      , ROW_NUMBER() OVER(PARTITION BY S1.MENU_NO ORDER BY A1.DISP_ORDER_NO ASC, A1.MENU_NO ASC)
+                                                AS ROW_NO                    <!-- 행번호 -->
+                FROM    TB_MENU                 A1                           <!-- [메뉴] -->
+                INNER JOIN
+                        CB_SUB_MENU             S1                           <!-- [서브메뉴] -->
+                        ON  S1.MENU_NO          =  A1.PRNTS_MENU_NO
+                        AND S1.MENU_ADDR_NAME   IS NULL
+                WHERE   EXISTS  (
+                                SELECT  <!-- 메뉴 기본권한을 확인한다. -->
+                                        1
+                                FROM    TB_MENU             AA               <!-- [메뉴] -->
+                                WHERE   AA.MENU_NO          =  A1.MENU_NO    <!-- N(10,0) N 메뉴번호   -->
+                                AND     AA.AUTH_CODE        IS NOT NULL      <!-- V(20)   Y 권한코드   -->
+                                UNION ALL
+                                SELECT  <!-- 익명사용자 권한을 확인한다. -->
+                                        1
+                                FROM    TB_MENU_AUTH        AA               <!-- [메뉴권한] -->
+                                INNER JOIN
+                                        TB_AUTH             BA               <!-- [권한] -->
+                                        ON  BA.AUTH_ID      =  AA.AUTH_ID    <!-- V(20)   N 권한ID   -->
+                                        AND BA.ANONY_YN     =  'Y'           <!-- C(1)    N 익명여부 --><!-- 여 -->
+                                WHERE   AA.MENU_NO          =  A1.MENU_NO    <!-- N(10,0) N 메뉴번호 -->
+                                UNION ALL
+                                SELECT  <!-- 관리자 권한을 확인한다. -->
+                                        1
+                                FROM    TB_USER             UA               <!-- [사용자] -->
+                                WHERE   UA.USER_ID          =  #{userId}     <!-- V(20)   N 사용자ID   -->
+                                AND     UA.USE_YN           =  'Y'           <!-- C(1)    N 사용여부   -->
+                                AND     UA.ADMIN_YN         =  'Y'           <!-- C(1)    N 관리자여부 -->
+                                UNION ALL
+                                SELECT  <!-- 로그인사용자 권한을 확인한다. -->
+                                        1
+                                FROM    TB_MENU_AUTH        AA               <!-- [메뉴권한] -->
+                                INNER JOIN
+                                        TB_AUTH             BA               <!-- [권한] -->
+                                        ON  BA.AUTH_ID   =  AA.AUTH_ID       <!-- V(20)   N 권한ID   -->
+                                        AND BA.ANONY_YN  =  'N'              <!-- C(1)    N 익명여부 --><!-- 여 -->
+                                INNER JOIN
+                                        TB_USER_AUTH        CA               <!-- [사용자권한] -->
+                                        ON  CA.AUTH_ID      =  BA.AUTH_ID    <!-- V(20)   N 권한ID   -->
+                                        AND CA.USER_ID      =  #{userId}     <!-- V(20)   N 사용자ID -->
+                                WHERE   AA.MENU_NO          =  A1.MENU_NO    <!-- N(10,0) N 메뉴번호 -->
+                               )
+                AND     A1.DISP_YN           =  'Y'                          <!-- C(1)   N 표시여부 -->
+                AND     A1.USE_YN            =  'Y'                          <!-- C(1)   N 사용여부 -->
+                )
+        <if test='"/index.do".equals(pathName)'>
+        </if>
+        SELECT  'ITEM.' || A1.ITEM_ID        AS ITEM_ID                      <!-- V(20)   N 항목ID   -->
+              , A1.ITEM_NAME                                                 <!-- V(200)  N 항목명   -->
+        FROM    TB_ITEM                      A1                              <!-- [항목] -->
+        INNER JOIN
+                CB_LANG_CODE                 L1                              <!-- [언어코드] -->
+                ON  L1.LANG_CODE             =  A1.LANG_CODE
+        WHERE   A1.PATH_NAME                 =  #{pathName}                  <!-- V(200)  N 경로명   -->
+        UNION ALL
+        SELECT  'ITEM.' || A1.ITEM_ID                                        <!-- V(20)   N 항목ID   -->
+              , A1.ITEM_NAME                                                 <!-- V(200)  N 항목명   -->
+        FROM    TB_ITEM                      A1                              <!-- [항목] -->
+        INNER JOIN
+                CB_LANG_CODE                 L1                              <!-- [언어코드] -->
+                ON  L1.LANG_CODE             =  A1.LANG_CODE
+        WHERE   A1.PATH_NAME                 =  '*.jsp'                      <!-- V(200)  N 경로명   -->
+        AND     NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_ITEM                  AA               <!-- [항목] -->
+                           WHERE   AA.LANG_CODE             =  A1.LANG_CODE  <!-- V(20)   N 언어코드 -->
+                           AND     AA.PATH_NAME             =  #{pathName}   <!-- V(200)  N 경로명   -->
+                           AND     AA.ITEM_ID               =  A1.ITEM_ID    <!-- V(20)   N 항목ID   -->
+                           )
+        UNION ALL
+        SELECT  <!-- 사용자 언어코드를 조회한다. -->
+                'COM_PARAM.langCode'
+              , L1.LANG_CODE
+        FROM    CB_LANG_CODE                 L1                              <!-- [언어코드] -->
+        UNION ALL
+        SELECT  <!-- 화면주소명을 조회한다. -->
+                'COM_PARAM.scrAddrName'      AS ITEM_ID
+              , ( CASE WHEN 'Y' != A1.CLSFY_USE_YN OR #{menuAddrNameClsfyId} IS NULL THEN #{pathName} ELSE #{pathName} || CHR(63) || 'menuAddrNameClsfyId=' || #{menuAddrNameClsfyId} END )
+                                             AS ITEM_NAME
+        FROM    TB_MENU                      A1                              <!-- [메뉴] -->
+        INNER JOIN CB_MENU_NO                M1                              <!-- [메뉴번호] -->
+                ON  M1.MENU_NO               =  A1.MENU_NO
+        UNION ALL
+        SELECT  <!-- 시스템변수내역을 조회한다. -->
+                'SYS_VAR.' || A1.VAR_ID                                      <!-- V(20)   N 변수ID -->
+              , A1.VAR_NAME                  AS ITEM_NAME                    <!-- V(200)  N 변수명 -->
+        FROM    TB_SYS_VAR                   A1                              <!-- [시스템변수] -->
+        UNION ALL
+        SELECT  <!-- 권한코드를 조회한다. -->
+                'MENU.authCode'              AS ITEM_ID
+              , MAX(A1.AUTH_CODE)            AS ITEM_NAME
+        FROM    CB_AUTH_CODE                 A1                              <!-- [권한코드] -->
+        UNION ALL
+        SELECT  <!-- 로그인사용자명을 조회한다. -->
+                'LOGIN.userName'             AS ITEM_ID
+              , A1.USER_NAME                 AS ITEM_NAME                    <!-- V(200)  N 사용자명   -->
+        FROM    TB_USER                      A1                              <!-- [사용자] -->
+        WHERE   A1.USER_ID                   =  #{userId}                    <!-- V(200)  N 경로명     -->
+        AND     A1.USE_YN                    =  'Y'                          <!-- C(1)    N 사용여부   --><!-- 여 -->
+        UNION ALL
+        SELECT  <!-- 사용자 서브메뉴표시여부를 조회한다. -->
+                'USER.subMenuDispYn'         AS ITEM_ID
+              , #{subMenuDispYn}             AS ITEM_NAME
+
+        FROM    DUAL
+        UNION ALL
+        SELECT  <!-- 상단메뉴명을 조회한다. -->
+                'MENU.topName' || SUBSTR('0' || CAST(ROW_NUMBER() OVER(ORDER BY A1.DISP_ORDER_NO ASC, A1.MENU_NO ASC) AS VARCHAR2(2)), -2)
+              , B1.MENU_NAME                 AS ITEM_NAME
+        FROM    CB_TOP_MENU                  A1                              <!-- [상단메뉴] -->
+        CROSS JOIN
+                CB_LANG_CODE                 L1
+        LEFT OUTER JOIN
+                TB_MENU_NAME                 B1                              <!-- [메뉴명] -->
+                ON  B1.LANG_CODE             =  L1.LANG_CODE                 <!-- V(20)    N 언어코드 -->
+                AND B1.MENU_NO               =  A1.MENU_NO                   <!-- N(10, 0) N 메뉴번호 -->
+                AND A1.AUTH_YN               =  'Y'                          <!-- 여 -->
+        UNION ALL
+        SELECT  <!-- 상단메뉴번호내역을 조회한다. -->
+                'MENU.topNo' || SUBSTR('0' || CAST(ROW_NUMBER() OVER(ORDER BY A1.DISP_ORDER_NO ASC, A1.MENU_NO ASC) AS VARCHAR2(2)), -2)
+                                             AS ITEM_ID                      <!-- N(10,0) N 표시순서번호 --><!-- N(10,0) N 메뉴번호 -->
+              , CASE WHEN A1.AUTH_YN = 'N' THEN NULL ELSE CAST(A1.MENU_NO AS VARCHAR2(200)) END
+                                             AS ITEM_NAME                    <!-- N(10,0) N 메뉴번호     -->
+        FROM    CB_TOP_MENU                  A1                              <!-- [상단메뉴] -->
+        UNION ALL
+        SELECT  <!-- 메뉴트리구조를 표시하기 위한 메뉴명을 조회한다. -->
+                'MENU.pathName' || SUBSTR('0' || CAST(ROW_NUMBER() OVER(ORDER BY A1.DEPTH DESC) AS VARCHAR2(2)), -2)
+              , B1.MENU_NAME                 AS ITEM_NAME                    <!-- V(200)  N 메뉴명   -->
+        FROM    CB_MENU_NO_PATH              A1                              <!-- [메뉴번호경로] -->
+        CROSS JOIN
+                CB_LANG_CODE                 L1                              <!-- [언어코드] -->
+        INNER JOIN
+                TB_MENU_NAME                 B1                              <!-- [메뉴명] -->
+                ON  B1.LANG_CODE             =  L1.LANG_CODE                 <!-- V(20)   N 언어코드 -->
+                AND B1.MENU_NO               =  A1.MENU_NO                   <!-- N(10,0) N 메뉴번호 -->
+        UNION ALL
+        SELECT  <!-- 메뉴트리구조를 표시하기 위한 메뉴번호를 조회한다. -->
+                'MENU.pathNo' || SUBSTR('0' || CAST(ROW_NUMBER() OVER(ORDER BY A1.DEPTH DESC) AS VARCHAR2(2)), -2)
+              , CAST(A1.MENU_NO AS VARCHAR2(200))
+        FROM    CB_MENU_NO_PATH              A1                              <!-- [메뉴번호경로] -->
+        UNION ALL
+        SELECT  <!-- 현재일자를 조회한다. -->
+                'CRRNT.date'                 AS ITEM_ID
+              , TO_CHAR(SYSDATE, 'YYYYMMDD')
+                                             AS ITEM_NAME
+        FROM    DUAL
+        UNION ALL
+        SELECT  <!-- 서브메뉴명내역을 조회한다. -->
+                'MENU.subName' ||
+                    SUBSTR('0' || CAST(DENSE_RANK() OVER(                            ORDER BY A1.TOP_DISP_ORDER_NO ASC, A1.TOP_MENU_NO ASC) AS VARCHAR2(2)), -2) || '_' ||
+                    SUBSTR('0' || CAST(ROW_NUMBER() OVER(PARTITION BY A1.TOP_MENU_NO ORDER BY     A1.DISP_ORDER_NO ASC,     A1.MENU_NO ASC) AS VARCHAR2(2)), -2)
+                                             AS ITEM_ID
+              , B1.MENU_NAME                 AS ITEM_NAME
+        FROM    CB_SUB_MENU                  A1                              <!-- [서브메뉴] -->
+        CROSS JOIN
+                CB_LANG_CODE                 L1
+        LEFT OUTER JOIN
+                TB_MENU_NAME                 B1                              <!-- [메뉴명] -->
+                ON  B1.LANG_CODE             =  L1.LANG_CODE                 <!-- V(20)    N 언어코드 -->
+                AND B1.MENU_NO               =  A1.MENU_NO                   <!-- N(10, 0) N 메뉴번호 -->
+        UNION ALL
+        SELECT  <!-- 서브메뉴주소내역을 조회한다. -->
+                'MENU.subAddr' ||
+                    SUBSTR('0' || CAST(DENSE_RANK() OVER(                            ORDER BY A1.TOP_DISP_ORDER_NO ASC, A1.TOP_MENU_NO ASC) AS VARCHAR2(2)), -2) || '_' ||
+                    SUBSTR('0' || CAST(ROW_NUMBER() OVER(PARTITION BY A1.TOP_MENU_NO ORDER BY     A1.DISP_ORDER_NO ASC,     A1.MENU_NO ASC) AS VARCHAR2(2)), -2)
+                                             AS ITEM_ID
+              , COALESCE(A1.MENU_ADDR_NAME, (
+                                            SELECT  <!-- 메뉴주소가 존재하지 않는 경우 첫번째 하위메뉴의 메뉴주소를 가져온다. -->
+                                                    S2.MENU_ADDR_NAME
+                                            FROM    CB_SUB_MENU2       S2    <!-- [서브메뉴2] -->
+                                            WHERE   S2.SUB_MENU_NO     =  A1.MENU_NO
+                                            AND     S2.ROW_NO          =  1
+                                            ))
+                                            AS ITEM_NAME                     <!-- V(200)  Y 메뉴주소명 -->
+        FROM    CB_SUB_MENU                 A1                               <!-- [서브메뉴] -->
+        <if test='"/index.do".equals(pathName)'>
+        </if>
+    </select>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="itemOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.develop.item.dao.vo.ItemVO">
+        WITH    /* sqlMapId(itemOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  A1.LANG_CODE            AS LANG_CODE                 <!-- V(20)   N 언어코드 -->
+                      , A1.PATH_NAME            AS PATH_NAME                 <!-- V(200)  N 경로명   -->
+                      , A1.ITEM_ID              AS ITEM_ID                   <!-- V(20)   N 항목ID   -->
+                      , A1.ITEM_NAME            AS ITEM_NAME                 <!-- V(200)  N 항목명   -->
+                      , A1.INTRR_NAME           AS INTRR_NAME                <!-- V(200)  N 내부명   -->
+                      , 'SELECT ''' || A1.LANG_CODE || ''', ''' || A1.PATH_NAME || ''', ''' || A1.ITEM_ID || ''' FROM DUAL'
+                                                AS ROW_ID                    <!-- 행ID -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.LANG_CODE ASC, A1.PATH_NAME ASC, A1.ITEM_ID ASC)
+                                                AS ROW_NO                    <!-- 행번호 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_ITEM                 A1                           <!-- [항목] -->
+                <where>
+                <if test='null != langCode  and "" != langCode' >
+                AND     A1.LANG_CODE            =  #{langCode}               <!-- V(20)   N 언어코드 -->
+                </if>
+                <if test='null != pathName  and "" != pathName' >
+                AND     A1.PATH_NAME            =  #{pathName}               <!-- V(200)  N 경로명   -->
+                </if>
+                <if test='null != itemId    and "" != itemId'   >
+                AND     A1.ITEM_ID              LIKE '%' || #{itemId}    || '%'<!-- V(20)   N 항목ID   -->
+                </if>
+                <if test='null != itemName  and "" != itemName' >
+                AND     A1.ITEM_NAME            LIKE '%' || #{itemName}  || '%'<!-- V(200)  N 항목명   -->
+                </if>
+                <if test='null != intrrName and "" != intrrName'>
+                AND     A1.INTRR_NAME           LIKE '%' || #{intrrName} || '%'<!-- V(200)  N 내부명   -->
+                </if>
+                </where>
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                AS PAGE
+                FROM    CB_INQR_ORG             A1                           <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                AS START_ROW
+                      , A1.PAGE_ROW * A1.PAGE   AS END_ROW
+                FROM    CB_TOTAL                A1                           <!-- [총수] -->
+                )
+        SELECT  A1.*
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 중복여부 조회 -->
+    <select id="itemOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.develop.item.dao.vo.ItemVO">
+        SELECT  /* sqlMapId(itemOra.selectDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_ITEM                                                      <!-- [항목] -->
+        WHERE   LANG_CODE                    =  #{langCode}                  <!-- V(20)   N 언어코드 -->
+        AND     PATH_NAME                    =  #{pathName}                  <!-- V(200)  N 경로명   -->
+        AND     ITEM_ID                      =  #{itemId}                    <!-- V(20)   N 항목ID   -->
+        <if test='null != rowId and "" != rowId'>
+        AND     ( LANG_CODE, PATH_NAME, ITEM_ID )
+                                             NOT IN ( ${rowId} )             <!-- V(20)   N 언어코드 --><!-- V(200)  N 경로명   --><!-- V(20)   N 항목ID   -->
+        </if>
+    </select>
+
+    <!-- 등록 -->
+    <insert id="itemOra.insertInfo" parameterType="com.ecosian.epfse.develop.item.dao.vo.ItemVO">
+        INSERT INTO TB_ITEM                                                  <!-- [항목] -->
+        (       /* sqlMapId(itemOra.insertItem) */
+                LANG_CODE                                                    <!-- V(20)   N 언어코드 -->
+              , PATH_NAME                                                    <!-- V(200)  N 경로명   -->
+              , ITEM_ID                                                      <!-- V(20)   N 항목ID   -->
+              , ITEM_NAME                                                    <!-- V(200)  N 항목명   -->
+              , INTRR_NAME                                                   <!-- V(200)  N 내부명   -->
+        )
+        VALUES
+        (
+                #{langCode}                                                  <!-- V(20)   N 언어코드 -->
+              , #{pathName}                                                  <!-- V(200)  N 경로명   -->
+              , #{itemId}                                                    <!-- V(20)   N 항목ID   -->
+              , #{itemName}                                                  <!-- V(200)  N 항목명   -->
+              , #{intrrName}                                                 <!-- V(200)  N 내부명   -->
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="itemOra.updateInfo" parameterType="com.ecosian.epfse.develop.item.dao.vo.ItemVO">
+        UPDATE  TB_ITEM                                                      <!-- [항목] -->
+        SET     /* sqlMapId(itemOra.updateInfo) */
+
+                LANG_CODE                    =  #{langCode}                  <!-- V(20)   N 언어코드 -->
+              , PATH_NAME                    =  #{pathName}                  <!-- V(200)  N 경로명   -->
+              , ITEM_ID                      =  #{itemId}                    <!-- V(20)   N 항목ID   -->
+              , ITEM_NAME                    =  #{itemName}                  <!-- V(200)  N 항목명   -->
+              , INTRR_NAME                   =  #{intrrName}                 <!-- V(200)  N 내부명   -->
+        WHERE   ( LANG_CODE, PATH_NAME, ITEM_ID )
+                                             IN ( ${rowId} )                 <!-- V(20)   N 언어코드 --><!-- V(200)  N 경로명   --><!-- V(20)   N 항목ID   -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="itemOra.deleteList" parameterType="com.ecosian.epfse.develop.item.dao.vo.ItemVO">
+        DELETE  /* sqlMapId(itemOra.deleteList) */
+        FROM    TB_ITEM                                                      <!-- [항목] -->
+        WHERE   ( LANG_CODE, PATH_NAME, ITEM_ID )
+                                             IN ( ${rowId} )                 <!-- V(20)   N 언어코드 --><!-- V(200)  N 경로명   --><!-- V(20)   N 항목ID   -->
+    </delete>
+</mapper>

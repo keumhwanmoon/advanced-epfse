@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sysVarOra">
+    <resultMap type="com.ecosian.epfse.system.var.dao.vo.SysVarVO" id="result">
+        <result property="varId"     column="VAR_ID"     />
+        <result property="varName"   column="VAR_NAME"   />
+        <result property="intrrName" column="INTRR_NAME" />
+        <result property="rowId" column="ROW_ID" />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="sysVarOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.system.var.dao.vo.SysVarVO">
+        WITH    /* sqlMapId(sysVarOra.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  A1.VAR_ID                                            <!-- V(20)   N 변수ID   -->
+                      , A1.VAR_NAME                                          <!-- V(200)  N 변수명   -->
+                      , A1.INTRR_NAME                                        <!-- V(200)  N 내부명   -->
+                      , A1.VAR_ID                   AS ROW_ID                <!-- 행ID -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY A1.VAR_ID ASC)
+                                                    AS ROW_NO                <!-- 행번호 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_SYS_VAR                  A1                       <!-- [시스템변수] -->
+                <where>
+                <if test='null != varId and "" != varId'>
+                AND     A1.VAR_ID                   =  #{varId}              <!-- V(20)   N 변수ID   -->
+                </if>
+                </where>
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT
+                A1.VAR_ID                                                    <!-- V(20)   N 변수ID   -->
+              , A1.VAR_NAME                                                  <!-- V(200)  N 변수명   -->
+              , A1.INTRR_NAME                                                <!-- V(200)  N 내부명   -->
+              , A1.ROW_ID                                                    <!-- 행ID -->
+              , A1.ROW_NO                                                    <!-- 행번호 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 중복여부 조회 -->
+    <select id="sysVarOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.system.var.dao.vo.SysVarVO">
+        SELECT  /* sqlMapId(sysVarOra.selectDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_SYS_VAR                                                   <!-- [시스템변수] -->
+        WHERE   VAR_ID                       =  #{varId}                     <!-- V(20)   N 변수ID   -->
+        <if test='null != rowId and "" != rowId'>
+        AND     VAR_ID                       != #{rowId}                     <!-- V(20)   N 변수ID   -->
+        </if>
+    </select>
+
+    <!-- 등록 -->
+    <insert id="sysVarOra.insertInfo" parameterType="com.ecosian.epfse.system.var.dao.vo.SysVarVO">
+        INSERT INTO TB_SYS_VAR                                               <!-- [시스템변수] -->
+        (       /* sqlMapId(sysVarOra.insertInfo) */
+                VAR_ID                                                       <!-- V(20)   N 변수ID   -->
+              , VAR_NAME                                                     <!-- V(200)  N 변수명   -->
+              , INTRR_NAME                                                   <!-- V(200)  N 내부명   -->
+        )
+        VALUES
+        (
+                #{varId}                                                     <!-- V(20)   N 변수ID   -->
+              , #{varName}                                                   <!-- V(200)  N 변수명   -->
+              , #{intrrName}                                                 <!-- V(200)  N 내부명   -->
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="sysVarOra.updateInfo" parameterType="com.ecosian.epfse.system.var.dao.vo.SysVarVO">
+        UPDATE  TB_SYS_VAR                                                   <!-- [시스템변수] -->
+        SET     /* sqlMapId(sysVarOra.updateInfo) */
+                VAR_ID                       =  #{varId}                     <!-- V(20)   N 변수ID   -->
+              , VAR_NAME                     =  #{varName}                   <!-- V(200)  N 변수명   -->
+              , INTRR_NAME                   =  #{intrrName}                 <!-- V(200)  N 내부명   -->
+        WHERE   VAR_ID                       =  #{rowId}                     <!-- V(20)   N 변수ID   -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="sysVarOra.deleteList" parameterType="com.ecosian.epfse.system.var.dao.vo.SysVarVO">
+        DELETE  /* sqlMapId(sysVarOra.deleteList) */
+        FROM    TB_SYS_VAR                                                   <!-- [시스템변수] -->
+        WHERE   VAR_ID                       IN (${rowId})                   <!-- V(20)   N 변수ID   -->
+    </delete>
+</mapper>

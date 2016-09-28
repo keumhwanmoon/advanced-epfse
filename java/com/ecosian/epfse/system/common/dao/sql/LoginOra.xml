@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="loginOra">
+    <resultMap type="com.ecosian.epfse.system.common.dao.vo.LoginVO" id="resultInfoLogin">
+        <result property="pwdName" column="PWD_NAME" />
+        <result property="useYn"   column="USE_YN"   />
+    </resultMap>
+
+    <!-- 로그인 정보 조회 -->
+    <!-- 설명 : LoginServiceImpl 클래스에서 사용한다. -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="loginOra.selectInfo" resultMap="resultInfoLogin" parameterType="com.ecosian.epfse.system.common.dao.vo.LoginVO">
+        SELECT  /* sqlMapId(loginOra.selectInfo) */
+                A1.PWD_NAME                                                  <!-- V(200)  N 비밀번호명 -->
+              , A1.USE_YN                                                    <!-- C(1)    N 사용여부   -->
+        FROM    TB_USER                      A1                              <!-- [사용자] -->
+        WHERE   A1.USER_ID                   =  #{userId}                    <!-- V(20)   N 사용자ID\  -->
+    </select>
+</mapper>

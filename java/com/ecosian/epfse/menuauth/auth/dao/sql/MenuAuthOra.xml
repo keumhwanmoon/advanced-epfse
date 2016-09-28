@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="menuAuthOra">
+    <resultMap type="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO" id="result">
+        <result property="menuName"     column="MENU_NAME" />
+        <result property="authCodeName" column="AUTH_CODE_NAME" />
+        <result property="rowId"        column="ROW_ID"    />
+
+        <result property="rowNo"   column="ROW_NO"   />
+        <result property="total"   column="TOTAL"    />
+        <result property="maxPage" column="MAX_PAGE" />
+        <result property="page"    column="PAGE"     />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO" id="resultInfo">
+        <result property="menuName"     column="MENU_NAME"      />
+        <result property="authCode"     column="AUTH_CODE"      />
+        <result property="childApplyYn" column="CHILD_APPLY_YN" />
+    </resultMap>
+
+    <!-- 권한번호 조회 -->
+    <!-- 설명 : LoginAscpect 클래스에서 사용한다. -->
+    <select id="menuAuthOra.selectAuthNo" resultType="String" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        WITH    /* sqlMapId(menuAuthOra.selectAuthNo) */
+                CB_MENU_NO                                                   <!-- [메뉴번호] -->
+                AS
+                (
+                SELECT  <!-- 메뉴번호를 조회한다. -->
+                        MAX(MENU_NO)    AS MENU_NO                           <!-- N(10,0) N 메뉴번호   -->
+                FROM    TB_MENU                                              <!-- [메뉴] -->
+                WHERE   MENU_ADDR_NAME  =  ( CASE WHEN 'Y' != CLSFY_USE_YN OR #{menuAddrNameClsfyId} IS NULL THEN #{menuAddrName} ELSE #{menuAddrName} || CHR(63) || 'menuAddrNameClsfyId=' || #{menuAddrNameClsfyId} END )
+                                                                             <!-- V(200)  Y 메뉴주소명 -->
+                AND     USE_YN          =  'Y'                               <!-- C(1)    N 사용여부   --><!-- 여 -->
+                )
+        SELECT  ( CASE WHEN B1.MENU_NO IS NULL THEN '-9'                     <!-- 잘못된요청 -->
+                       WHEN EXISTS  (
+                                    SELECT  <!-- 메뉴 기본권한을 확인한다. -->
+                                            1
+                                    FROM    TB_MENU         AA               <!-- [메뉴] -->
+                                    INNER JOIN
+                                            CB_MENU_NO      N1               <!-- [메뉴번호] -->
+                                            ON  N1.MENU_NO  =  AA.MENU_NO
+                                    WHERE   AA.AUTH_CODE    IS NOT NULL      <!-- V(20)   Y 권한코드   -->
+                                    )       THEN '0'                         <!-- 기본권한 -->
+                       WHEN EXISTS  (
+                                    SELECT  <!-- 익명사용자 권한을 확인한다. -->
+                                            1
+                                    FROM    TB_MENU_AUTH    A1               <!-- [메뉴권한] -->
+                                    INNER JOIN
+                                            TB_AUTH         B1               <!-- [권한] -->
+                                            ON  B1.AUTH_ID  =  A1.AUTH_ID    <!-- V(20)   N 권한ID     -->
+                                            AND B1.ANONY_YN =  'Y'           <!-- C(1)    N 익명여부   --><!-- 여 -->
+                                    INNER JOIN TB_MENU      M1               <!-- [메뉴] -->
+                                            ON  M1.MENU_NO  =  A1.MENU_NO    <!-- N(10,0) N 메뉴번호   -->
+                                            AND M1.USE_YN   =  'Y'           <!-- C(1)    N 사용여부   --><!-- 여 -->
+                                    INNER JOIN
+                                            CB_MENU_NO      N1               <!-- [메뉴번호] -->
+                                            ON  N1.MENU_NO  =  A1.MENU_NO
+                                    )       THEN '1'                         <!-- 익명권한 -->
+                       WHEN EXISTS  (
+                                    SELECT  <!-- 관리자인지 조회한다. -->
+                                            1
+                                    FROM    TB_USER         U1               <!-- [사용자] -->
+                                    WHERE   U1.USER_ID      =  #{userId}     <!-- V(20)   N 사용자ID   -->
+                                    AND     U1.USE_YN       =  'Y'           <!-- C(1)    N 사용여부   --><!-- 여 -->
+                                    AND     U1.ADMIN_YN     =  'Y'           <!-- C(1)    N 관리자여부 -->
+                                    )       THEN '3'                         <!-- 관리자권한 -->
+                       WHEN EXISTS  (
+                                    SELECT  <!-- 사용자 권한이 있는지 조회한다. -->
+                                            1
+                                    FROM    TB_MENU_AUTH    A1               <!-- [메뉴권한] -->
+                                    INNER JOIN
+                                            TB_AUTH         B1               <!-- [권한] -->
+                                            ON  B1.AUTH_ID  =  A1.AUTH_ID    <!-- V(20)   N 권한ID     -->
+                                            AND B1.ANONY_YN =  'N'           <!-- C(1)    N 익명여부   --><!-- 여 -->
+                                    INNER JOIN
+                                            TB_USER_AUTH    C1               <!-- [사용자권한] -->
+                                            ON  C1.AUTH_ID  =  A1.AUTH_ID    <!-- V(20)   N 권한ID     -->
+                                            AND C1.USER_ID  =  #{userId}     <!-- V(20)   N 사용자ID   -->
+                                    INNER JOIN
+                                            TB_MENU         M1               <!-- [메뉴] -->
+                                            ON  M1.MENU_NO  =  A1.MENU_NO    <!-- N(10,0) N 메뉴번호   -->
+                                            AND M1.USE_YN   =  'Y'           <!-- C(1)    N 사용여부   --><!-- 여 -->
+                                    INNER JOIN
+                                            CB_MENU_NO      N1               <!-- [메뉴번호] -->
+                                            ON  N1.MENU_NO  =  A1.MENU_NO
+                                    )       THEN '5'                         <!-- 사용자권한 -->
+                       ELSE                          '-1' END )              <!-- 권한없음 -->
+                                            AS AUTH_NO                       <!-- 권한번호 -->
+        FROM    DUAL                        A1
+        CROSS JOIN
+                CB_MENU_NO                  B1                               <!-- [메뉴번호] -->
+    </select>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="menuAuthOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        WITH    /* sqlMapId(menuAuth.selectList) */
+                CB_INQR_ORG                                                  <!-- [조회원본] -->
+                AS
+                (
+                SELECT  SUBSTR(SYS_CONNECT_BY_PATH(B1.MENU_NAME, '${menuDeli}'), LENGTH(#{menuDeli}))
+                                                    AS MENU_NAME             <!-- V(200)  N 메뉴명         -->
+                      , COALESCE(Z1.CODE_NAME, 'N/A')
+                                                    AS AUTH_CODE_NAME        <!-- 권한코드명               -->
+                      , C1.MENU_NO                  AS ROW_ID                <!-- N(10,0) N 메뉴번호       -->
+                        <!-- 행번호 컬럼을 추가한다. START -->
+                      , ROW_NUMBER() OVER(ORDER BY SYS_CONNECT_BY_PATH(LPAD(C1.DISP_ORDER_NO, 10, '0') || '_' || LPAD(C1.MENU_NO, 10, '0'), '^') ASC)
+                                                    AS ROW_NO                <!-- 행번호 -->
+                        <!-- 행번호 컬럼을 추가한다. END   -->
+                FROM    TB_MENU                     C1                       <!-- [메뉴] -->
+                LEFT OUTER JOIN
+                        TB_MENU_AUTH                A1                       <!-- [메뉴권한] -->
+                        ON  A1.AUTH_ID              =  #{authId}             <!-- V(20)   N 권한ID         -->
+                        AND A1.MENU_NO              =  C1.MENU_NO            <!-- N(10,0) N 메뉴번호       -->
+                LEFT OUTER JOIN
+                        TB_MENU_NAME                B1                       <!-- [메뉴명] -->
+                        ON  B1.LANG_CODE            =  #{userLangCode}       <!-- V(20)   N 언어코드       -->
+                        AND B1.MENU_NO              =  C1.MENU_NO            <!-- N(10,0) N 메뉴번호       -->
+                LEFT OUTER JOIN
+                        TB_CODE_NAME                Z1                       <!-- [코드명] -->
+                        ON  Z1.LANG_CODE            =  #{userLangCode}       <!-- V(20)   N 언어코드       -->
+                        AND Z1.CODE_HDR_ID          =  #{authCodeHdrId}      <!-- V(20)   N 코드헤더ID     -->
+                        AND Z1.USERDEF_CODE         =  A1.AUTH_CODE          <!-- V(20)   N 사용자정의코드 -->
+                START WITH
+                        C1.PRNTS_MENU_NO            =  #{rowId}              <!-- N(10,0) Y 부모메뉴번호   -->
+                CONNECT BY
+                PRIOR   C1.MENU_NO                  =  C1.PRNTS_MENU_NO
+                )
+              , CB_TOTAL                                                     <!-- [총수] -->
+                AS
+                (
+                SELECT  COUNT(1)                    AS TOTAL
+                      , CAST(#{pageRow} AS NUMBER(10,0))
+                                                    AS PAGE_ROW
+                      , CAST(#{page   } AS NUMBER(10,0))
+                                                    AS PAGE
+                FROM    CB_INQR_ORG                 A1                       <!-- [조회원본] -->
+                )
+              , CB_MAX_PAGE                                                  <!-- [최대페이지] -->
+                AS
+                (
+                SELECT  A1.TOTAL
+                      , CEIL(A1.TOTAL / A1.PAGE_ROW)
+                                                    AS MAX_PAGE
+                      , A1.PAGE
+                      ,
+                        A1.PAGE_ROW * ( A1.PAGE - 1 ) + 1
+                                                    AS START_ROW
+                      , A1.PAGE_ROW *   A1.PAGE     AS END_ROW
+                FROM    CB_TOTAL                    A1                       <!-- [총수] -->
+                )
+        SELECT
+                A1.MENU_NAME                                                 <!-- V(200)  N 메뉴명         -->
+              , A1.AUTH_CODE_NAME                                            <!-- 권한코드명               -->
+              , A1.ROW_ID                                                    <!-- N(10,0) N 메뉴번호       -->
+              , A1.ROW_NO                                                    <!-- 행번호 -->
+              , B1.TOTAL
+              , B1.MAX_PAGE
+              , B1.PAGE
+        FROM    CB_INQR_ORG                  A1                              <!-- [조회원본] -->
+        CROSS JOIN
+                CB_MAX_PAGE                  B1                              <!-- [최대페이지] -->
+        WHERE   A1.ROW_NO                    BETWEEN B1.START_ROW
+                                             AND     B1.END_ROW
+        ORDER BY
+                A1.ROW_NO                    ASC
+    </select>
+
+    <!-- 정보 조회 -->
+    <select id="menuAuthOra.selectInfo" resultMap="resultInfo" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        SELECT  /* sqlMapId(menuAuth.selectInfo) */
+                B1.MENU_NAME                 AS MENU_NAME                    <!-- V(200)  N 메뉴명   -->
+              , A1.AUTH_CODE                 AS AUTH_CODE                    <!-- V(20)   N 권한코드     -->
+              , 'N'                          AS CHILD_APPLY_YN               <!-- 자식적용여부           --><!-- 부 -->
+        FROM    DUAL                         Z1
+        LEFT OUTER JOIN
+                TB_MENU_AUTH                 A1                              <!-- [메뉴권한] -->
+                ON  A1.AUTH_ID               =  #{authId}                    <!-- V(20)   N 권한ID       -->
+                AND A1.MENU_NO               =  #{rowId}                     <!-- N(10,0) N 메뉴번호     -->
+        LEFT OUTER JOIN
+                TB_MENU_NAME                 B1                              <!-- [메뉴명] -->
+                ON  B1.LANG_CODE             =  #{userLangCode}              <!-- V(20)   N 언어코드     -->
+                AND B1.MENU_NO               =  #{rowId}                     <!-- N(10,0) N 메뉴번호     -->
+    </select>
+
+    <!-- 목록 등록 -->
+    <insert id="menuAuthOra.insertList" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        INSERT INTO TB_MENU_AUTH                                             <!-- [메뉴권한] -->
+        (
+                /* sqlMapId(menuAuth.insertList) */
+                AUTH_ID                                                      <!-- V(20)   N 권한ID       -->
+              , MENU_NO                                                      <!-- N(10,0) N 메뉴번호     -->
+              , AUTH_CODE                                                    <!-- V(20)   N 권한코드     -->
+        )
+        SELECT  #{authId}                    AS AUTH_ID                      <!-- V(20)   N 권한ID       -->
+              , B1.MENU_NO                                                   <!-- N(10,0) N 메뉴번호     -->
+              , #{authCode}                  AS AUTH_CODE                    <!-- V(20)   N 권한코드     -->
+        FROM    TB_MENU                      B1                              <!-- [메뉴] -->
+        <where>
+        AND     <if test='"Y".equals(childApplyYn)'>(</if>
+                B1.MENU_NO                   IN (${rowIdList})               <!-- N(10,0) N 메뉴번호     -->
+        <if test='"Y".equals(childApplyYn)'>
+        OR      B1.MENU_NO                   IN (
+                                                SELECT  BA.MENU_NO           <!-- N(10,0) N 메뉴번호     -->
+                                                FROM    TB_MENU           BA <!-- [메뉴] -->
+                                                START WITH
+                                                        BA.PRNTS_MENU_NO  =  ${rowIdList}      <!-- N(10,0) Y 부모메뉴번호 -->
+                                                CONNECT BY
+                                                PRIOR   BA.MENU_NO        =  BA.PRNTS_MENU_NO
+                                                )
+                )
+        </if>
+        </where>
+        AND     NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_MENU_AUTH  AA                          <!-- [메뉴권한] -->
+                           WHERE   AA.AUTH_ID    =  #{authId}                <!-- V(20)   N 권한ID     -->
+                           AND     AA.MENU_NO    =  B1.MENU_NO               <!-- N(10,0) N 메뉴번호   -->
+                           )
+    </insert>
+
+    <!-- 목록 수정 -->
+    <update id="menuAuthOra.updateList" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        UPDATE  TB_MENU_AUTH                 A1                              <!-- [메뉴권한] -->
+        SET     /* sqlMapId(menuAuth.updateList) */
+                AUTH_CODE                    =  #{authCode}                  <!-- V(20)   N 권한코드   -->
+        WHERE   A1.AUTH_ID                   =  #{authId}                    <!-- V(20)   N 권한ID     -->
+        AND     <if test='"Y".equals(childApplyYn)'>(</if>
+                A1.MENU_NO                   IN (${rowIdList})               <!-- N(10,0) N 메뉴번호   -->
+        <if test='"Y".equals(childApplyYn)'>
+        OR      A1.MENU_NO                   IN (
+                                                SELECT  BA.MENU_NO           <!-- N(10,0) N 메뉴번호   -->
+                                                FROM    TB_MENU           BA <!-- [메뉴] -->
+                                                START WITH
+                                                        BA.PRNTS_MENU_NO  =  ${rowIdList}      <!-- N(10,0) Y 부모메뉴번호 -->
+                                                CONNECT BY
+                                                PRIOR   BA.MENU_NO        =  BA.PRNTS_MENU_NO
+                                                )
+                )
+        </if>
+    </update>
+
+    <!-- 권한 수정 -->
+    <!-- 설명 : 권한 클래스 저장시 사용한다. -->
+    <update id="menuAuthOra.updateAuthInfo" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        UPDATE  TB_MENU_AUTH                                                 <!-- [메뉴권한] -->
+        SET     /* sqlMapId(menuAuth.updateAuthInfo) */
+                AUTH_ID                       =  #{authId}                   <!-- V(20)   N 권한ID     -->
+        WHERE   AUTH_ID                       =  #{rowId}                    <!-- V(20)   N 권한ID     -->
+    </update>
+
+    <!-- 메뉴번호 수정 -->
+    <!-- 설명 : 메뉴 클래스 수정시 사용한다. -->
+    <update id="menuAuthOra.updateMenuNoInfo" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        UPDATE  TB_MENU_AUTH                                                 <!-- [메뉴권한] -->
+        SET     /* sqlMapId(menuAuth.updateMenuNoInfo) */
+                MENU_NO                       =  #{menuNo}                   <!-- N(10,0) N 메뉴번호   -->
+        WHERE   MENU_NO                       =  #{rowId}                    <!-- N(10,0) N 메뉴번호   -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="menuAuthOra.deleteList" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        DELETE  /* sqlMapId(menuAuth.deleteList) */
+        FROM    TB_MENU_AUTH                  A1                             <!-- [메뉴권한] -->
+        WHERE   A1.AUTH_ID                    =  #{authId}                   <!-- V(20)   N 권한ID     -->
+        AND     <if test='"Y".equals(childApplyYn)'>(</if>
+                A1.MENU_NO                    IN (${rowIdList})              <!-- N(10,0) N 메뉴번호   -->
+        <if test='"Y".equals(childApplyYn)'>
+        OR      A1.MENU_NO                    IN (
+                                                 SELECT  BA.MENU_NO           <!-- N(10,0) N 메뉴번호   -->
+                                                 FROM    TB_MENU           BA <!-- [메뉴] -->
+                                                 START WITH
+                                                         BA.PRNTS_MENU_NO  =  ${rowIdList}      <!-- N(10,0) Y 부모메뉴번호 -->
+                                                 CONNECT BY
+                                                 PRIOR   BA.MENU_NO        =  BA.PRNTS_MENU_NO
+                                                 )
+                )
+        </if>
+    </delete>
+
+    <!-- 권한 목록 삭제 -->
+    <!-- 설명 : 권한 클래스 삭제시 사용한다. -->
+    <delete id="menuAuthOra.deleteAuthList" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        DELETE  /* sqlMapId(menuAuth.deleteListAuthList) */
+        FROM    TB_MENU_AUTH                                                 <!-- [메뉴권한] -->
+        WHERE   AUTH_ID                      IN (${rowId})                   <!-- V(20)   N 권한ID     -->
+    </delete>
+
+    <!-- 메뉴 삭제 -->
+    <!-- 설명 : 메뉴 클래스 삭제시 사용한다. -->
+    <delete id="menuAuthOra.deleteMenuInfo" parameterType="com.ecosian.epfse.menuauth.auth.dao.vo.MenuAuthVO">
+        DELETE  /* sqlMapId(menuAuth.deleteMenuInfo) */
+        FROM    TB_MENU_AUTH                                                 <!-- [메뉴권한] -->
+        WHERE   MENU_NO                      =  #{rowId}                     <!-- N(10,0) N 메뉴번호   -->
+    </delete>
+</mapper>

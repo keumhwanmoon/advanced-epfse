@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="bltbrdOra">
+    <resultMap type="com.ecosian.epfse.system.bltbrd.dao.vo.BltbrdVO" id="result">
+        <result property="bltbrdName"   column="BLTBRD_NAME"    />
+        <result property="titleItemId"  column="TITLE_ITEM_ID"  />
+        <result property="titleItemId2" column="TITLE_ITEM_ID2" />
+        <result property="cttsItemId"   column="CTTS_ITEM_ID"   />
+        <result property="qstnBltbrdYn" column="QSTN_BLTBRD_YN" />
+        <result property="ascInqrYn"    column="ASC_INQR_YN"    />
+        <result property="rowId" column="ROW_ID" />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.system.bltbrd.dao.vo.BltbrdVO" id="resultInfo">
+        <result property="bltbrdNo"     column="BLTBRD_NO"      />
+        <result property="bltbrdName"   column="BLTBRD_NAME"    />
+        <result property="titleItemId"  column="TITLE_ITEM_ID"  />
+        <result property="titleItemId2" column="TITLE_ITEM_ID2" />
+        <result property="cttsItemId"   column="CTTS_ITEM_ID"   />
+        <result property="qstnBltbrdYn" column="QSTN_BLTBRD_YN" />
+        <result property="ascInqrYn"    column="ASC_INQR_YN"    />
+        <result property="titleItemIdName"  column="TITLE_ITEM_ID_NAME"  />
+        <result property="titleItemId2Name" column="TITLE_ITEM_ID2_NAME" />
+        <result property="cttsItemIdName"   column="CTTS_ITEM_ID_NAME"   />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="bltbrdOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.system.bltbrd.dao.vo.BltbrdVO">
+        SELECT  /* sqlMapId(bltbrdOra.selectList) */
+                A1.BLTBRD_NAME                                               <!-- V(200)  N 게시판명         -->
+              , A1.TITLE_ITEM_ID                                             <!-- V(20)   N 제목항목ID       -->
+              , A1.TITLE_ITEM_ID2                                            <!-- V(20)   Y 제목항목ID2      -->
+              , A1.CTTS_ITEM_ID                                              <!-- V(20)   N 내용항목ID       -->
+              , A1.QSTN_BLTBRD_YN                                            <!-- C(1)    N 질문게시판여부   -->
+              , A1.ASC_INQR_YN                                               <!-- C(1)    N 오름차순조회여부 -->
+              , A1.BLTBRD_NO                 AS ROW_ID                       <!-- 행ID -->
+        FROM    TB_BLTBRD                    A1                              <!-- [게시판] -->
+        <where>
+        <if test='null != bltbrdNo and "" != bltbrdNo'>
+        AND     A1.BLTBRD_NO                 =  #{bltbrdNo}                  <!-- N(10,0) N 게시판번호       -->
+        </if>
+        </where>
+        ORDER BY
+                A1.BLTBRD_NAME               ASC
+    </select>
+
+    <!-- 정보 조회 -->
+    <select id="bltbrdOra.selectInfo" resultMap="resultInfo" parameterType="com.ecosian.epfse.system.bltbrd.dao.vo.BltbrdVO">
+        SELECT  /* sqlMapId(bltbrdOra.selectInfo) */
+                A1.BLTBRD_NO                                                 <!-- N(10,0) N 게시판번호       -->
+              , A1.BLTBRD_NAME                                               <!-- V(200)  N 게시판명         -->
+              , A1.TITLE_ITEM_ID                                             <!-- V(20)   N 제목항목ID       -->
+              , A1.TITLE_ITEM_ID2                                            <!-- V(20)   Y 제목항목ID2      -->
+              , A1.CTTS_ITEM_ID                                              <!-- V(20)   N 내용항목ID       -->
+              , A1.QSTN_BLTBRD_YN                                            <!-- C(1)    N 질문게시판여부   -->
+              , A1.ASC_INQR_YN                                               <!-- C(1)    N 오름차순조회여부 -->
+              , Z1.ITEM_NAME                 AS TITLE_ITEM_ID_NAME           <!-- 제목항목ID명  --><!-- V(200)  N 항목명   -->
+              , Z2.ITEM_NAME                 AS TITLE_ITEM_ID2_NAME          <!-- 제목항목ID명2 -->
+              , Z3.ITEM_NAME                 AS CTTS_ITEM_ID_NAME            <!-- 제목항목ID명  -->
+        FROM    TB_BLTBRD                    A1                              <!-- [게시판] -->
+        LEFT OUTER JOIN TB_ITEM              Z1                              <!-- [항목] -->
+                ON  Z1.LANG_CODE             =  #{userLangCode}              <!-- V(20)   N 언어코드         -->
+                AND Z1.PATH_NAME             =  #{scrAddrName}               <!-- V(200)  N 경로명           -->
+                AND Z1.ITEM_ID               =  A1.TITLE_ITEM_ID             <!-- V(20)   N 항목ID   --><!-- V(20)   N 제목항목ID       -->
+        LEFT OUTER JOIN TB_ITEM              Z2                              <!-- [항목] -->
+                ON  Z2.LANG_CODE             =  #{userLangCode}              <!-- V(20)   N 언어코드         -->
+                AND Z2.PATH_NAME             =  #{scrAddrName}               <!-- V(200)  N 경로명           -->
+                AND Z2.ITEM_ID               =  A1.TITLE_ITEM_ID2            <!-- V(20)   N 항목ID           --><!-- V(20)   Y 제목항목ID2      -->
+        LEFT OUTER JOIN TB_ITEM              Z3                              <!-- [항목] -->
+                ON  Z3.LANG_CODE             =  #{userLangCode}              <!-- V(20)   N 언어코드         -->
+                AND Z3.PATH_NAME             =  #{scrAddrName}               <!-- V(200)  N 경로명           -->
+                AND Z3.ITEM_ID               =  A1.CTTS_ITEM_ID              <!-- V(20)   N 항목ID           --><!-- V(20)   N 내용항목ID       -->
+        WHERE   A1.BLTBRD_NO                 =  #{rowId}                     <!-- N(10,0) N 게시판번호       -->
+    </select>
+
+    <!-- 등록 -->
+    <insert id="bltbrdOra.insertInfo" parameterType="com.ecosian.epfse.system.bltbrd.dao.vo.BltbrdVO">
+        INSERT INTO TB_BLTBRD                                                <!-- [게시판] -->
+        (       /* sqlMapId(bltbrdOra.insertInfo) */
+                BLTBRD_NO                                                    <!-- N(10,0) N 게시판번호       -->
+              , BLTBRD_NAME                                                  <!-- V(200)  N 게시판명         -->
+              , TITLE_ITEM_ID                                                <!-- V(20)   N 제목항목ID       -->
+              , TITLE_ITEM_ID2                                               <!-- V(20)   Y 제목항목ID2      -->
+              , CTTS_ITEM_ID                                                 <!-- V(20)   N 내용항목ID       -->
+              , QSTN_BLTBRD_YN                                               <!-- C(1)    N 질문게시판여부   -->
+              , ASC_INQR_YN                                                  <!-- C(1)    N 오름차순조회여부 -->
+              , RGST_DTM                                                     <!-- DATE    N 등록일시         -->
+              , RGST_USER_ID                                                 <!-- V(20)   N 등록사용자ID     -->
+              , UPDT_DTM                                                     <!-- DATE    Y 수정일시         -->
+              , UPDT_USER_ID                                                 <!-- V(20)   Y 수정사용자ID     -->
+        )
+        SELECT  COALESCE(MAX(BLTBRD_NO), 0) + 1                              <!-- N(10,0) N 게시판번호       -->
+              , #{bltbrdName}                                                <!-- V(200)  N 게시판명         -->
+              , #{titleItemId}                                               <!-- V(20)   N 제목항목ID       -->
+              , #{titleItemId2}                                              <!-- V(20)   Y 제목항목ID2      -->
+              , #{cttsItemId}                                                <!-- V(20)   N 내용항목ID       -->
+              , #{qstnBltbrdYn}                                              <!-- C(1)    N 질문게시판여부   -->
+              , #{ascInqrYn}                                                 <!-- C(1)    N 오름차순조회여부 -->
+              , SYSDATE                                                      <!-- DATE    N 등록일시         -->
+              , #{rgstUserId}                                                <!-- V(20)   N 등록사용자ID     -->
+              , NULL                                                         <!-- DATE    Y 수정일시         -->
+              , NULL                                                         <!-- V(20)   Y 수정사용자ID     -->
+        FROM    TB_BLTBRD                                                    <!-- [게시판] -->
+    </insert>
+
+    <!-- 수정 -->
+    <update id="bltbrdOra.updateInfo" parameterType="com.ecosian.epfse.system.bltbrd.dao.vo.BltbrdVO">
+        UPDATE  TB_BLTBRD                                                    <!-- [게시판] -->
+        SET     /* sqlMapId(bltbrdOra.updateInfo) */
+                BLTBRD_NAME                  =  #{bltbrdName}                <!-- V(200)  N 게시판명         -->
+              , TITLE_ITEM_ID                =  #{titleItemId}               <!-- V(20)   N 제목항목ID       -->
+              , TITLE_ITEM_ID2               =  #{titleItemId2}              <!-- V(20)   Y 제목항목ID2      -->
+              , CTTS_ITEM_ID                 =  #{cttsItemId}                <!-- V(20)   N 내용항목ID       -->
+              , QSTN_BLTBRD_YN               =  #{qstnBltbrdYn}              <!-- C(1)    N 질문게시판여부   -->
+              , ASC_INQR_YN                  =  #{ascInqrYn}                 <!-- C(1)    N 오름차순조회여부 -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시         -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(20)   Y 수정사용자ID     -->
+        WHERE   BLTBRD_NO                    =  #{rowId}                     <!-- N(10,0) N 게시판번호       -->
+    </update>
+
+    <!-- 목록 삭제 -->
+    <delete id="bltbrdOra.deleteList" parameterType="com.ecosian.epfse.system.bltbrd.dao.vo.BltbrdVO">
+        DELETE  /* sqlMapId(deleteList) */
+        FROM    TB_BLTBRD                                                    <!-- [게시판] -->
+        WHERE   BLTBRD_NO                    IN (${rowId})                   <!-- N(10,0) N 게시판번호       -->
+    </delete>
+</mapper>

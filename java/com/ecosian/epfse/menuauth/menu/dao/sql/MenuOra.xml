@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="menuOra">
+    <resultMap type="com.ecosian.epfse.system.common.dao.vo.TreeVO" id="resultTree">
+        <result property="jstreeId"     column="JSTREE_ID"     />
+        <result property="jstreePrnts"  column="JSTREE_PRNTS"  />
+        <result property="jstreeText"   column="JSTREE_TEXT"   />
+        <result property="jstreeIcon"   column="JSTREE_ICON"   />
+        <result property="jstreeOpened" column="JSTREE_OPENED" />
+    </resultMap>
+    <resultMap type="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO" id="result">
+        <result property="menuNo"        column="MENU_NO"         />
+        <result property="menuName"      column="MENU_NAME"       />
+        <result property="sltnYn"        column="SLTN_YN"         />
+        <result property="sltnName"      column="SLTN_NAME"       />
+        <result property="intrrName"     column="INTRR_NAME"      />
+        <result property="prntsMenuName" column="PRNTS_MENU_NAME" />
+        <result property="prntsMenuNo"   column="PRNTS_MENU_NO"   />
+        <result property="menuAddrName"  column="MENU_ADDR_NAME"  />
+        <result property="dispOrderNo"   column="DISP_ORDER_NO"   />
+        <result property="dispYn"        column="DISP_YN"         />
+        <result property="useYn"         column="USE_YN"          />
+        <result property="authCode"      column="AUTH_CODE"       />
+        <result property="clsfyUseYn"    column="CLSFY_USE_YN"    />
+    </resultMap>
+
+    <!-- 트리 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="menuOra.selectTreeList" resultMap="resultTree" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        SELECT  /* sqlMapId(menuOra.selectTreeList) */
+                A1.MENU_NO                   AS JSTREE_ID                    <!-- N(10,0) N 메뉴번호         -->
+              , COALESCE(CAST(A1.PRNTS_MENU_NO AS VARCHAR2(10)), '#')
+                                             AS JSTREE_PRNTS                 <!-- N(10,0) Y 부모메뉴번호     -->
+              , B1.MENU_NAME                 AS JSTREE_TEXT                  <!-- V(200)  N 메뉴명   -->
+              , ( CASE WHEN 1 = LEVEL    THEN S1.VAR_NAME                    <!-- V(200)  N 변수명   -->
+                       WHEN NOT EXISTS (
+                                       SELECT  1
+                                       FROM    TB_MENU           AA             <!-- [메뉴] -->
+                                       WHERE   AA.PRNTS_MENU_NO  =  A1.MENU_NO  <!-- N(10,0) Y 부모메뉴번호 -->
+                                       ) THEN S2.VAR_NAME ELSE NULL END )    <!-- V(200)  N 변수명   -->
+                                             AS JSTREE_ICON
+              , ( CASE WHEN 1 = LEVEL THEN 'true' ELSE 'false' END )
+                                             AS JSTREE_OPENED
+              , SYS_CONNECT_BY_PATH(LPAD(A1.DISP_ORDER_NO, 10, '0') || '_' || LPAD(A1.MENU_NO, 10, '0'), '^')
+                                             AS ROW_ID
+        FROM    TB_MENU                      A1                              <!-- [메뉴] -->
+        LEFT OUTER JOIN
+                TB_MENU_NAME                 B1                              <!-- [메뉴명] -->
+                ON  B1.LANG_CODE             =  #{userLangCode}              <!-- V(20)   N 언어코드         -->
+                AND B1.MENU_NO               =  A1.MENU_NO                   <!-- N(10,0) N 메뉴번호         -->
+        LEFT OUTER JOIN
+                TB_SYS_VAR  S1                                               <!-- [시스템변수] -->
+                ON  S1.VAR_ID                =  'treeIconRoot'               <!-- V(20)   N 변수ID           -->
+        LEFT OUTER JOIN
+                TB_SYS_VAR  S2                                               <!-- [시스템변수] -->
+                ON  S2.VAR_ID                =  'treeIconLeaf'               <!-- V(20)   N 변수ID           -->
+        START WITH
+                A1.PRNTS_MENU_NO             IS NULL                         <!-- N(10,0) Y 부모메뉴번호     -->
+        CONNECT BY
+        PRIOR   A1.MENU_NO                   =  A1.PRNTS_MENU_NO
+        ORDER BY
+                ROW_ID                       ASC
+    </select>
+
+    <!-- 정보 조회 -->
+    <select id="menuOra.selectInfo" resultMap="result" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        SELECT  /* sqlMapId(menuOra.selectInfo) */
+                A1.MENU_NO                                                  <!-- N(10,0) N 메뉴번호         -->
+              , B1.MENU_NAME                                                <!-- V(200)  N 메뉴명           -->
+              , A1.INTRR_NAME                                               <!-- V(200)  N 내부명           -->
+              , B2.MENU_NAME                AS PRNTS_MENU_NAME              <!-- V(200)  N 메뉴명           -->
+              , A1.SLTN_YN                                                  <!-- C(1)    N 솔루션여부       -->
+              , A1.SLTN_NAME                                                <!-- V(200)  N 솔루션명         -->
+              , A1.PRNTS_MENU_NO                                            <!-- N(10,0) Y 부모메뉴번호     -->
+              , A1.MENU_ADDR_NAME                                           <!-- V(200)  Y 메뉴주소명       -->
+              , A1.DISP_ORDER_NO                                            <!-- N(10,0) N 표시순서번호     -->
+              , A1.DISP_YN                                                  <!-- C(1)    N 표시여부         -->
+              , A1.USE_YN                                                   <!-- C(1)    N 사용여부         -->
+              , A1.AUTH_CODE                                                <!-- V(20)   Y 권한코드         -->
+              , A1.CLSFY_USE_YN                                             <!-- C(1)    N 구분사용여부     -->
+        FROM    TB_MENU                     A1                              <!-- [메뉴] -->
+        LEFT OUTER JOIN
+                TB_MENU_NAME                B1                              <!-- [메뉴명] -->
+                ON  B1.LANG_CODE            =  #{userLangCode}              <!-- V(20)   N 언어코드        -->
+                AND B1.MENU_NO              =  A1.MENU_NO                   <!-- N(10,0) N 메뉴번호        -->
+        LEFT OUTER JOIN
+                TB_MENU_NAME                B2                              <!-- [메뉴명] -->
+                ON  B2.LANG_CODE            =  #{userLangCode}              <!-- V(20)   N 언어코드 -->
+                AND B2.MENU_NO              =  A1.PRNTS_MENU_NO             <!-- N(10,0) N 메뉴번호         --><!-- N(10,0) Y 부모메뉴번호 -->
+        WHERE   A1.MENU_NO                  =  #{rowId}                     <!-- N(10,0) N 메뉴번호         -->
+    </select>
+
+    <!-- 중복여부 조회 -->
+    <select id="menuOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        SELECT  /* sqlMapId(menuOra.selectDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_MENU                                                      <!-- [메뉴] -->
+        WHERE   MENU_NO                      =  #{menuNo}                    <!-- N(10,0) N 메뉴번호       -->
+        <if test='null != rowId and "" != rowId'>
+        AND     MENU_NO                      != #{rowId}                     <!-- N(10,0) N 메뉴번호       -->
+        </if>
+    </select>
+
+    <!-- 주소중복여부 조회 -->
+    <select id="menuOra.selectAddrDupYn" resultType="String" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        SELECT  /* sqlMapId(menuOra.selectAddrDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_MENU                                                      <!-- [메뉴] -->
+        WHERE   #{menuAddrName}              IS NOT NULL
+        AND     MENU_ADDR_NAME               IS NOT NULL                     <!-- V(200)  Y 메뉴주소명     -->
+        AND     MENU_ADDR_NAME               =  #{menuAddrName}              <!-- V(200)  Y 메뉴주소명     -->
+        <if test='null != rowId and "" != rowId'>
+        AND     MENU_NO                      != #{rowId}                     <!-- N(10,0) N 메뉴번호       -->
+        </if>
+    </select>
+
+    <!-- ROOT 수 조회 -->
+    <select id="menuOra.selectRootCount" resultType="String" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        SELECT  /* sqlMapId(menuOra.selectRootCount) */
+                COUNT(1)
+        FROM    TB_MENU                                                      <!-- [메뉴] -->
+        WHERE   PRNTS_MENU_NO                IS NULL                         <!-- N(10,0) Y 부모메뉴번호   -->
+        AND     USE_YN                       =  'Y'                          <!-- C(1)    N 사용여부       --><!-- 여 -->
+    </select>
+
+    <!-- 행ID 조회 -->
+    <select id="menuOra.selectRowId" resultType="String" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        SELECT  /* sqlMapId(menuOra.selectRowId) */
+                MAX(MENU_NO)                                                 <!-- N(10,0) N 메뉴번호       -->
+        FROM    TB_MENU                                                      <!-- [메뉴] -->
+    </select>
+
+    <!-- 부모 행ID 조회 -->
+    <select id="menuOra.selectPrntsRowId" resultType="String" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        SELECT  /* sqlMapId(menuOra.selectPrntsRowId) */
+                COALESCE(CAST(PRNTS_MENU_NO AS VARCHAR2(10)), '#')           <!-- N(10,0) Y 부모메뉴번호   -->
+        FROM    TB_MENU                                                      <!-- [메뉴] -->
+        WHERE   MENU_NO                      =  #{rowId}                     <!-- N(10,0) N 메뉴번호       -->
+    </select>
+
+    <!-- 등록 -->
+    <insert id="menuOra.insertInfo" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        INSERT INTO TB_MENU                                                  <!-- [메뉴] -->
+        (       /* sqlMapId(menuOra.insertInfo) */
+                MENU_NO                                                     <!-- N(10,0) N 메뉴번호       -->
+              , INTRR_NAME                                                  <!-- V(200)  N 내부명         -->
+              , PRNTS_MENU_NO                                               <!-- N(10,0) Y 부모메뉴번호   -->
+              , MENU_ADDR_NAME                                              <!-- V(200)  Y 메뉴주소명     -->
+              , CLSFY_USE_YN                                                <!-- C(1)    N 구분사용여부   -->
+              , DISP_ORDER_NO                                               <!-- N(10,0) N 표시순서번호   -->
+              , DISP_YN                                                     <!-- C(1)    N 표시여부       -->
+              , USE_YN                                                      <!-- C(1)    N 사용여부       -->
+              , AUTH_CODE                                                   <!-- V(20)   Y 권한코드       -->
+              , SLTN_YN                                                     <!-- C(1)    N 솔루션여부     -->
+              , SLTN_NAME                                                   <!-- V(200)  Y 솔루션명       -->
+              , RGST_DTM                                                    <!-- DATE    N 등록일시       -->
+              , RGST_USER_ID                                                <!-- V(100)  N 등록사용자ID   -->
+              , UPDT_DTM                                                    <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                                                <!-- V(100)  Y 수정사용자ID   -->
+        )
+        SELECT  COALESCE(MAX(MENU_NO), 0) + 1
+                                             AS MENU_NO                     <!-- N(10,0) N 메뉴번호       -->
+              , 'N/A'                        AS INTRR_NAME                  <!-- V(200)  N 내부명         -->
+              , #{prntsMenuNo}               AS PRNTS_MENU_NO               <!-- N(10,0) Y 부모메뉴번호   -->
+              , NULL                         AS MENU_ADDR_NAME              <!-- V(200)  Y 메뉴주소명     -->
+              , 'Y'                          AS CLSFY_USE_YN                <!-- C(1)    N 구분사용여부   --><!-- 여 -->
+              , 9999999999                   AS DISP_ORDER_NO               <!-- N(10,0) N 표시순서번호   -->
+              , 'N'                          AS DISP_YN                     <!-- C(1)    N 표시여부       --><!-- 부 -->
+              , 'N'                          AS USE_YN                      <!-- C(1)    N 사용여부       --><!-- 부 -->
+              , NULL                         AS AUTH_CODE                   <!-- V(20)   Y 권한코드       -->
+              , 'N'                          AS SLTN_YN                     <!-- C(1)    N 솔루션여부     -->
+              , 'NONE'                       AS SLTN_NAME                   <!-- V(200)  Y 솔루션명       -->
+              , SYSDATE                      AS RGST_DTM                    <!-- DATE    N 등록일시       -->
+              , #{rgstUserId}                AS RGST_USER_ID                <!-- V(100)  N 등록사용자ID   -->
+              , NULL                         AS UPDT_DTM                    <!-- DATE    Y 수정일시       -->
+              , NULL                         AS UPDT_USER_ID                <!-- V(100)  Y 수정사용자ID   -->
+        FROM    TB_MENU                                                     <!-- [메뉴] -->
+    </insert>
+
+    <!-- 수정 -->
+    <update id="menuOra.updateInfo" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        UPDATE  TB_MENU                                                      <!-- [메뉴] -->
+        SET     /* sqlMapId(menuOra.updateInfo) */
+                MENU_NO                     =  #{menuNo}                    <!-- N(10,0) N 메뉴번호       -->
+              , INTRR_NAME                  =  #{intrrName}                 <!-- V(200)  N 내부명         -->
+              , PRNTS_MENU_NO               =  #{prntsMenuNo}               <!-- N(10,0) Y 부모메뉴번호   -->
+              , MENU_ADDR_NAME              =  #{menuAddrName}              <!-- V(200)  Y 메뉴주소명     -->
+              , CLSFY_USE_YN                =  #{clsfyUseYn}                <!-- C(1)    N 구분사용여부   -->
+              , DISP_ORDER_NO               =  #{dispOrderNo}               <!-- N(10,0) N 표시순서번호   -->
+              , DISP_YN                     =  #{dispYn}                    <!-- C(1)    N 표시여부       -->
+              , USE_YN                      =  #{useYn}                     <!-- C(1)    N 사용여부       -->
+              , AUTH_CODE                   =  #{authCode}                  <!-- V(20)   Y 권한코드       -->
+              , SLTN_YN                     =  #{sltnYn}                    <!-- C(1)    N 솔루션여부     -->
+              , SLTN_NAME                   =  #{sltnName}                  <!-- V(200)  Y 솔루션명       -->
+              , UPDT_DTM                    =  SYSDATE                      <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                =  #{updtUserId}                <!-- V(100)  Y 수정사용자ID   -->
+        WHERE   MENU_NO                     =  #{rowId}                     <!-- N(10,0) N 메뉴번호       -->
+    </update>
+
+    <!-- 부모메뉴번호 수정 -->
+    <update id="menuOra.updatePrntsMenuNoInfo" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        UPDATE  TB_MENU                                                      <!-- [메뉴] -->
+        SET     /* sqlMapId(menuOra.updatePrntsMenuNoInfo) */
+                PRNTS_MENU_NO                =  #{menuNo}                    <!-- N(10,0) Y 부모메뉴번호   -->
+              , UPDT_DTM                     =  SYSDATE                      <!-- DATE    Y 수정일시       -->
+              , UPDT_USER_ID                 =  #{updtUserId}                <!-- V(100)  Y 수정사용자ID   -->
+        WHERE   PRNTS_MENU_NO                =  #{rowId}                     <!-- N(10,0) Y 부모메뉴번호   -->
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="menuOra.deleteInfo" parameterType="com.ecosian.epfse.menuauth.menu.dao.vo.MenuVO">
+        DELETE  /* sqlMapId(menuOra.deleteInfo) */
+        FROM    TB_MENU                                                      <!-- [메뉴] -->
+        WHERE   MENU_NO                      =  #{rowId}                     <!-- N(10,0) N 메뉴번호       -->
+    </delete>
+</mapper>

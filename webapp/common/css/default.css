@@ -1,0 +1,31 @@
+@charset "utf-8";
+@font-face {
+	font-family:'NG';
+	font-style:normal;
+	font-weight:400;
+	src:url('../font/NanumGothic.eot');
+	src:local(※), url('../font/NanumGothic.eot') format('embedded-opentype'), url('../font/NanumGothic.woff') format('woff');
+}
+@font-face {
+	font-family:'NGBold';
+	font-style:bold;
+	font-weight:700;
+	src:url('../font/NanumGothicBold.eot');
+	src:local(※), url('../font/NanumGothicBold.eot') format('embedded-opentype'), url('../font/NanumGothicBold.woff') format('woff');
+}
+
+/* default style */
+html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, font, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, article, aside, hgroup, header, footer, figure, figcaption, nav, section { margin:0; padding:0; border:0; font-size:100%; vertical-align:baseline; background:transparent; }
+body { color:#555; font:normal .75em/1.45 '나눔고딕', NanumGothic, NG, '돋움', Dotum, Arial, Tahoma, Geneva, Verdana; }
+h1, h2, h3, h4, h5, h6, .bold { color:#333; font-family:'나눔고딕볼드', 'NanumGothicBold', NGBold, '돋움', Dotum, Arial, Tahoma, Geneva, Verdana; }
+.normal { font-weight:normal; font-family:'나눔고딕', 'NanumGothic', NG, '돋움', Dotum, Arial, Tahoma, Geneva, Verdana; }
+ol, ul { list-style:none; overflow:hidden; }
+table { border-collapse:collapse; border-spacing:0; table-layout:fixed; empty-cells:show; font-family:'돋움', Dotum, Arial, Tahoma, Geneva, Verdana; }
+legend, caption { width:0; height:0; visibility:hidden; font-size:0; line-height:0; }
+textarea { resize:vertical; font:inherit; overflow-y:auto; }
+input, select { color:inherit; font:inherit; }
+select { padding:2px; }
+button { margin:0; padding:0; border:0; font:inherit; color:inherit; background:transparent; overflow:visible; cursor:pointer; line-height:1; }
+a:link, a:visited, a:hover, a:active, a:focus { text-decoration:none; color:inherit; cursor:pointer; }
+*::-moz-focus-inner { padding:0; border:0; }
+*::-ms-clear { display:none; }

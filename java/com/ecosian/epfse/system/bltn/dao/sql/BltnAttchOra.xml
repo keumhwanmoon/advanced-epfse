@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="bltnAttchOra">
+    <resultMap type="com.ecosian.epfse.system.bltn.dao.vo.BltnAttchVO" id="result">
+        <result property="attchId"      column="ATTCH_ID"       />
+        <result property="orgFileName"  column="ORG_FILE_NAME"  />
+        <result property="fileSizeAmt"  column="FILE_SIZE_AMT"  />
+        <result property="sizeUnitCode" column="SIZE_UNIT_CODE" />
+        <result property="attchHref"    column="ATTCH_HREF"     />
+    </resultMap>
+
+    <!-- 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="bltnAttchOra.selectList" resultMap="result" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnAttchVO">
+        SELECT  /* sqlMapId(bltnAttchOra.selectList) */
+                Z1.ATTCH_ID
+              , Z1.ORG_FILE_NAME
+              , Z1.FILE_SIZE_AMT
+              , Z1.SIZE_UNIT_CODE
+              , Z1.ATTCH_HREF
+        FROM    VW_ATTCH_HREF                Z1                              <!-- [첨부HREF] -->
+        INNER JOIN TB_BLTN_ATTCH             A1                              <!-- [게시물첨부] -->
+                ON  A1.BLTN_NO               =  #{rowId}                     <!-- N(10,0) N 게시물번호   -->
+                AND A1.ATTCH_ID              =  Z1.ATTCH_ID                  <!-- V(20)   N 첨부ID       -->
+        ORDER BY
+                Z1.ATTCH_ID                  ASC
+    </select>
+
+    <!-- 목록 등록 -->
+    <!-- 설명 : 동향 클래스 저장시 사용한다. -->
+    <insert id="bltnAttchOra.insertList" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnAttchVO">
+        INSERT INTO TB_BLTN_ATTCH                                            <!-- [게시물첨부] -->
+        (       /* sqlMapId(bltnAttchOra.insertList) */
+                ATTCH_SEQ                                                    <!-- N(10,0) N 첨부일련번호 -->
+              , BLTN_NO                                                      <!-- N(10,0) N 게시물번호   -->
+              , ATTCH_ID                                                     <!-- V(20)   N 첨부ID       -->
+        )
+        SELECT  (
+                SELECT  COALESCE(MAX(AA.ATTCH_SEQ), 0) AS ATTCH_SEQ
+                FROM    TB_BLTN_ATTCH        AA                              <!-- [게시물첨부] -->
+                ) + ROWNUM                   AS ATTCH_SEQ                    <!-- N(10,0) N 첨부일련번호 -->
+              , #{rowId}                     AS BLTN_NO                      <!-- N(10,0) N 게시물번호   -->
+              , Z1.ATTCH_ID                                                  <!-- V(20)   N 첨부ID       -->
+        FROM    TB_ATTCH                     Z1                              <!-- [첨부] -->
+        WHERE   Z1.ATTCH_ID                  IN (${rowIdList})               <!-- V(20)   N 첨부ID       -->
+        AND     NOT EXISTS (
+                           SELECT  1
+                           FROM    TB_BLTN_ATTCH  AB                         <!-- [게시물첨부] -->
+                           WHERE   AB.BLTN_NO     =  #{rowId}                <!-- N(10,0) N 게시물번호   -->
+                           AND     AB.ATTCH_ID    =  Z1.ATTCH_ID             <!-- V(20)   N 첨부ID       -->
+                           )
+    </insert>
+
+    <!-- 목록 삭제 -->
+    <!-- 설명 : 동향 클래스 저장/삭제시 사용한다. -->
+    <delete id="bltnAttchOra.deleteList" parameterType="com.ecosian.epfse.system.bltn.dao.vo.BltnAttchVO">
+        DELETE  /* sqlMapId(bltnAttchOra.deleteList) */
+        FROM    TB_BLTN_ATTCH                                                <!-- [게시물첨부] -->
+        WHERE   BLTN_NO                      =  #{rowId}                     <!-- N(10,0) N 게시물번호   -->
+        <if test='null != rowIdList and "" != rowIdList'>
+        AND     ATTCH_ID                     NOT IN (${rowIdList})           <!-- V(20)   N 첨부ID       -->
+        </if>
+    </delete>
+</mapper>

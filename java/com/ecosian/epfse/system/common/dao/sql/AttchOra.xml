@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+                        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="attchOra">
+    <resultMap type="com.ecosian.epfse.system.common.dao.vo.AttchVO" id="resultInfo">
+        <result property="orgFileName"   column="ORG_FILE_NAME"   />
+        <result property="fileSizeAmt"   column="FILE_SIZE_AMT"   />
+        <result property="sizeUnitCode"  column="SIZE_UNIT_CODE"  />
+        <result property="attchHref"     column="ATTCH_HREF"      />
+        <result property="sccssFuncName" column="SCCSS_FUNC_NAME" />
+        <result property="errorFuncName" column="ERROR_FUNC_NAME" />
+        <result property="rowId"         column="ROW_ID"          />
+    </resultMap>
+
+    <!-- 정보 조회 -->
+    <!-- 참고) 레코드의 모든 컬럼이 NULL 이면 Runtime 시 NullPointerException -->
+    <!--       발생하여 NOT NULL 이 되도록 ROW_ID 컬럼을 추가한다.            -->
+    <select id="attchOra.selectInfo" resultMap="resultInfo" parameterType="com.ecosian.epfse.system.common.dao.vo.AttchVO">
+        SELECT  /* sqlMapId(attchOra.selectInfo) */
+                A1.ORG_FILE_NAME                                             <!-- V(200)  N 원본파일명   -->
+              , A1.FILE_SIZE_AMT                                             <!-- N(21,6) N 파일크기량   -->
+              , A1.SIZE_UNIT_CODE                                            <!-- V(20)   N 크기단위코드 -->
+              , A1.ATTCH_HREF                                                <!-- 첨부HREF               -->
+              , #{sccssFuncName}             AS SCCSS_FUNC_NAME              <!-- 성공함수명             -->
+              , #{errorFuncName}             AS ERROR_FUNC_NAME              <!-- 오류함수명             -->
+              , A1.ATTCH_ID                  AS ROW_ID                       <!-- 행ID                   --><!-- V(20)   N 첨부ID     -->
+        FROM    VW_ATTCH_HREF                A1                              <!-- [첨부HREF] -->
+        WHERE   A1.ATTCH_ID                  =  #{rowId}                     <!-- V(20)   N 첨부ID       -->
+    </select>
+
+    <!-- 중복여부 조회 -->
+    <select id="attchOra.selectDupYn" resultType="String" parameterType="com.ecosian.epfse.system.common.dao.vo.AttchVO">
+        SELECT  /* sqlMapId(attchOra.selectDupYn) */
+                'Y'                          AS DUP_YN                       <!-- 중복여부 --><!-- 여 -->
+        FROM    TB_ATTCH                                                     <!-- [첨부] -->
+        WHERE   ATTCH_ID                     =  #{attchId}                   <!-- V(20)   N 첨부ID       -->
+    </select>
+
+    <!-- 등록 -->
+    <insert id="attchOra.insertInfo" parameterType="com.ecosian.epfse.system.common.dao.vo.AttchVO">
+        INSERT INTO TB_ATTCH                                                <!-- [첨부] -->
+        (       /* sqlMapId(attchOra.insertInfo) */
+                ATTCH_ID                                                    <!-- V(20)   N 첨부ID       -->
+              , ATTCH_PATH_NAME                                             <!-- V(200)  N 첨부경로명   -->
+              , ORG_FILE_NAME                                               <!-- V(200)  N 원본파일명   -->
+              , FILE_SIZE_AMT                                               <!-- N(21,6) N 파일크기량   -->
+              , SIZE_UNIT_CODE                                              <!-- V(20)   N 크기단위코드 -->
+              , SAVE_DTM                                                    <!-- C(14)   N 저장일시     -->
+              , VAR_ID                                                      <!-- V(20)   N 변수ID       -->
+        )
+        VALUES
+        (
+                #{attchId}                                                  <!-- V(20)   N 첨부ID       -->
+              , #{attchPathName}                                            <!-- V(200)  N 첨부경로명   -->
+              , #{orgFileName}                                              <!-- V(200)  N 원본파일명   -->
+              , #{fileSizeAmt}                                              <!-- N(21,6) N 파일크기량   -->
+              , #{sizeUnitCode}                                             <!-- V(20)   N 크기단위코드 -->
+              , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')                        <!-- C(14)   N 저장일시     -->
+              , #{varId}                                                    <!-- V(20)   N 변수ID       -->
+        )
+    </insert>
+</mapper>

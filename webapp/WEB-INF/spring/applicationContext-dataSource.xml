@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans
+    xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+    <context:property-placeholder location="/WEB-INF/config/jdbc.properties" /><!-- 외부 속성 파일을 사용 -->
+    <bean id="dataSourceSpied" class="org.apache.commons.dbcp.BasicDataSource"><!-- connection pool 기반 data source 설정용 -->
+        <property name="driverClassName" value="${jdbc.driverClassName}" />
+        <property name="url" value="${jdbc.url}" />
+        <property name="username" value="${jdbc.username}" />
+        <property name="password" value="${jdbc.password}" />
+        <property name="validationQuery" value="SELECT 1 FROM DUAL" />
+        <!--<property name="connectionProperties" value="SetBigStringTryClob=true" />-->
+    </bean>
+
+    <bean id="dataSource" class="net.sf.log4jdbc.Log4jdbcProxyDataSource"><!-- jdbc 로그 설정용 -->
+        <constructor-arg ref="dataSourceSpied" />
+        <property name="logFormatter">
+            <bean class="net.sf.log4jdbc.tools.Log4JdbcCustomFormatter">
+                <property name="loggingType" value="MULTI_LINE" />
+                <!--<property name="margin" value="19" />-->
+                <property name="sqlPrefix" value="↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ SQL statement ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓&#13;        " />
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean"><!-- myBatis 설정 -->
+        <property name="dataSource" ref="dataSourceSpied" /><!-- 사용될 data source bean -->
+        <!-- sql 파일경로 -->
+        <property name="mapperLocations" value="/WEB-INF/classes/com/ecosian/*/*/*/dao/sql/*Ora.xml" />
+    </bean>
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate"><!-- myBatis sql 실행용 객체 -->
+        <constructor-arg index="0" ref="sqlSessionFactory" />
+    </bean>
+</beans>
