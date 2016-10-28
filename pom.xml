@@ -222,6 +222,9 @@
         </dependency>
     </dependencies>
     <build>
+        <finalName>advanced-epfse</finalName>
+        <sourceDirectory>java</sourceDirectory>
+        <outputDirectory>target/${project.name}/WEB-INF/classes</outputDirectory>
         <plugins>
             <!--<plugin>
                 <artifactId>maven-eclipse-plugin</artifactId>
